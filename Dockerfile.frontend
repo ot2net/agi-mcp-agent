@@ -1,0 +1,40 @@
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# 复制package.json和package-lock.json（或yarn.lock）
+COPY frontend/package.json frontend/package-lock.json* frontend/yarn.lock* ./
+
+# 安装依赖
+RUN npm ci || yarn install --frozen-lockfile
+
+# 复制源代码
+COPY frontend/ ./
+
+# 构建应用
+RUN npm run build
+
+# 生产阶段
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# 复制必要文件
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+# 使用非root用户运行
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# 暴露端口
+EXPOSE 3000
+
+# 启动应用
+CMD ["npm", "start"] 
