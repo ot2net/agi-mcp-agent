@@ -48,6 +48,15 @@ class Environment(ABC):
             The initial observation
         """
         pass
+    
+    def close(self) -> None:
+        """Close the environment and free any resources.
+        
+        All environment implementations should override this method if they 
+        need to perform cleanup operations.
+        """
+        logger.info(f"Closing environment {self.name}")
+        pass
 
     def __str__(self) -> str:
         """Get a string representation of the environment.

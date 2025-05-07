@@ -166,6 +166,32 @@ Target coverage levels for environment implementations:
 - Error handling paths: 80%+ coverage
 - Edge cases: 70%+ coverage
 
+## Available Test Classes
+
+Currently, the following environment test classes are implemented:
+
+### APIEnvironment Tests (`test_api_environment.py`)
+
+The `TestAPIEnvironment` class provides comprehensive testing for the APIEnvironment implementation with:
+
+- GET and POST request testing with mocked responses
+- Error handling verification
+- Custom headers handling
+- Environment state reset testing
+
+Current test coverage: ~54%
+
+### MemoryEnvironment Tests (`test_memory_environment.py`)
+
+The `TestMemoryEnvironment` class tests the in-memory storage functionality with:
+
+- Item storage and retrieval
+- Expiration mechanisms
+- Namespace isolation
+- Search capabilities
+
+Current test coverage: ~68%
+
 ## Environment-Specific Testing Considerations
 
 ### API Environment
