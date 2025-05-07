@@ -101,7 +101,7 @@ The core agent capabilities:
 
 ### Prerequisites
 
-- Python 3.8 or later
+- Python 3.8.1 or later
 - [Poetry](https://python-poetry.org/docs/#installation) for dependency management (optional)
 - OpenAI API key (for LLM-based agents)
 - Docker and Docker Compose (optional, for containerized deployment)
