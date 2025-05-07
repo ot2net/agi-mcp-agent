@@ -6,10 +6,19 @@ import uuid
 from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from agi_mcp_agent.agent.llm_agent import LLMAgent
 from agi_mcp_agent.mcp.core import MasterControlProgram, Task
+from agi_mcp_agent.environment import (
+    APIEnvironment,
+    FileSystemEnvironment,
+    MemoryEnvironment,
+    WebEnvironment,
+    DatabaseEnvironment,
+    MCPEnvironment
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +29,23 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # 允许的前端域名
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有HTTP方法
+    allow_headers=["*"],  # 允许所有HTTP头
+)
+
 # Create the MCP
 mcp = MasterControlProgram()
 
 # Create a task to manage the MCP
 mcp_task = None
+
+# Dictionary to store environments
+environments = {}
 
 
 # Models for API requests and responses
@@ -77,6 +98,36 @@ class SystemStatusResponse(BaseModel):
     tasks: Dict
     agents: Dict
     timestamp: str
+
+
+class EnvironmentCreate(BaseModel):
+    """Model for creating an environment."""
+    
+    name: str
+    type: str
+    config: Dict = Field(default_factory=dict)
+
+
+class EnvironmentResponse(BaseModel):
+    """Model for environment responses."""
+    
+    id: str
+    name: str
+    type: str
+    status: str = "active"
+
+
+class EnvironmentActionRequest(BaseModel):
+    """Model for environment action requests."""
+    
+    action: Dict
+
+
+class EnvironmentActionResponse(BaseModel):
+    """Model for environment action responses."""
+    
+    success: bool
+    result: Dict
 
 
 # Routes
@@ -307,6 +358,230 @@ async def stop_system():
     
     return {"message": "System stopped"}
 
+
+# Environment routes
+@app.post("/environments/", response_model=EnvironmentResponse)
+async def create_environment(env: EnvironmentCreate):
+    """Create a new environment.
+    
+    Args:
+        env: The environment to create
+        
+    Returns:
+        The created environment
+    """
+    env_id = str(uuid.uuid4())
+    
+    try:
+        if env.type == "api":
+            new_env = APIEnvironment(
+                name=env.name,
+                base_url=env.config.get("base_url", ""),
+                headers=env.config.get("headers", {})
+            )
+        elif env.type == "filesystem":
+            new_env = FileSystemEnvironment(
+                name=env.name,
+                root_dir=env.config.get("root_dir", "./")
+            )
+        elif env.type == "memory":
+            new_env = MemoryEnvironment(
+                name=env.name,
+                namespace=env.config.get("namespace", "default")
+            )
+        elif env.type == "web":
+            new_env = WebEnvironment(
+                name=env.name,
+                user_agent=env.config.get("user_agent", "AGI-MCP-Agent WebEnvironment")
+            )
+        elif env.type == "database":
+            new_env = DatabaseEnvironment(
+                name=env.name,
+                connection_string=env.config.get("connection_string", "sqlite:///:memory:"),
+                engine_params=env.config.get("engine_params", {})
+            )
+        elif env.type == "mcp":
+            new_env = MCPEnvironment(
+                name=env.name,
+                mcp=mcp
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown environment type: {env.type}")
+        
+        environments[env_id] = new_env
+        
+        return {
+            "id": env_id,
+            "name": new_env.name,
+            "type": env.type,
+            "status": "active"
+        }
+    except Exception as e:
+        logger.error(f"Error creating environment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating environment: {str(e)}")
+
+
+@app.get("/environments/", response_model=List[EnvironmentResponse])
+async def list_environments():
+    """List all environments.
+    
+    Returns:
+        List of environments
+    """
+    return [
+        {
+            "id": env_id,
+            "name": env.name,
+            "type": get_environment_type(env),
+            "status": "active"
+        }
+        for env_id, env in environments.items()
+    ]
+
+
+@app.get("/environments/{env_id}", response_model=EnvironmentResponse)
+async def get_environment(env_id: str):
+    """Get an environment by ID.
+    
+    Args:
+        env_id: The ID of the environment to get
+        
+    Returns:
+        The environment
+    """
+    if env_id not in environments:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    env = environments[env_id]
+    return {
+        "id": env_id,
+        "name": env.name,
+        "type": get_environment_type(env),
+        "status": "active"
+    }
+
+
+@app.delete("/environments/{env_id}")
+async def delete_environment(env_id: str):
+    """Delete an environment.
+    
+    Args:
+        env_id: The ID of the environment to delete
+        
+    Returns:
+        Success message
+    """
+    if env_id not in environments:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    env = environments[env_id]
+    env.close()  # Close the environment
+    
+    del environments[env_id]
+    return {"message": f"Environment {env_id} deleted"}
+
+
+@app.post("/environments/{env_id}/action", response_model=EnvironmentActionResponse)
+async def execute_environment_action(env_id: str, action_request: EnvironmentActionRequest):
+    """Execute an action in an environment.
+    
+    Args:
+        env_id: The ID of the environment
+        action_request: The action to execute
+        
+    Returns:
+        The result of the action
+    """
+    if env_id not in environments:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    env = environments[env_id]
+    
+    try:
+        result = env.execute_action(action_request.action)
+        return {
+            "success": True,
+            "result": result
+        }
+    except Exception as e:
+        logger.error(f"Error executing action: {str(e)}")
+        return {
+            "success": False,
+            "result": {"error": str(e)}
+        }
+
+
+@app.get("/environments/{env_id}/observation", response_model=Dict)
+async def get_environment_observation(env_id: str):
+    """Get an observation from an environment.
+    
+    Args:
+        env_id: The ID of the environment
+        
+    Returns:
+        The observation
+    """
+    if env_id not in environments:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    env = environments[env_id]
+    
+    try:
+        observation = env.get_observation()
+        return observation
+    except Exception as e:
+        logger.error(f"Error getting observation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting observation: {str(e)}")
+
+
+@app.post("/environments/{env_id}/reset", response_model=Dict)
+async def reset_environment(env_id: str):
+    """Reset an environment.
+    
+    Args:
+        env_id: The ID of the environment
+        
+    Returns:
+        The initial observation
+    """
+    if env_id not in environments:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    env = environments[env_id]
+    
+    try:
+        observation = env.reset()
+        return observation
+    except Exception as e:
+        logger.error(f"Error resetting environment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error resetting environment: {str(e)}")
+
+
+# Helper functions
+def get_environment_type(env):
+    """Get the type of an environment object.
+    
+    Args:
+        env: The environment object
+        
+    Returns:
+        The type as a string
+    """
+    if isinstance(env, APIEnvironment):
+        return "api"
+    elif isinstance(env, FileSystemEnvironment):
+        return "filesystem"
+    elif isinstance(env, MemoryEnvironment):
+        return "memory"
+    elif isinstance(env, WebEnvironment):
+        return "web"
+    elif isinstance(env, DatabaseEnvironment):
+        return "database"
+    elif isinstance(env, MCPEnvironment):
+        return "mcp"
+    else:
+        return "unknown"
+        
 
 def start_server():
     """Start the FastAPI server."""
