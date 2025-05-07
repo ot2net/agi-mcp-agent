@@ -181,7 +181,7 @@ export default function Home() {
 
       <footer className="max-w-6xl mx-auto mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
         <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
-          <p>© 2024 OT2.net - AGI-MCP-Agent is licensed under the MIT License</p>
+          {/* 删除重复的版权信息 */}
         </div>
       </footer>
     </div>

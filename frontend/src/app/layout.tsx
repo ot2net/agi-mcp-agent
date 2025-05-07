@@ -54,7 +54,7 @@ export default function RootLayout({
           <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
             <div className="max-w-6xl mx-auto px-4 py-6">
               <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
-                <p>© 2024 OT2.net - AGI-MCP-Agent is licensed under the MIT License</p>
+                <p>© 2025 OT2.net - AGI-MCP-Agent is licensed under the MIT License</p>
               </div>
             </div>
           </footer>
