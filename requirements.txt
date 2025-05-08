@@ -1,0 +1,33 @@
+# Core dependencies
+fastapi>=0.104.0
+uvicorn>=0.23.2
+pydantic>=2.4.2
+sqlalchemy>=2.0.22
+python-dotenv>=1.0.0
+requests>=2.31.0
+aiohttp>=3.11.18
+websockets>=11.0.3
+python-multipart>=0.0.6
+numpy>=1.24.3
+beautifulsoup4>=4.13.4
+
+# LLM providers
+openai>=1.2.4
+anthropic>=0.8.0
+mistralai>=0.0.9
+google-generativeai>=0.3.0
+langchain>=0.0.335
+tiktoken>=0.5.1
+# No official DeepSeek Python package yet, using OpenAI API compatible interface
+# No official Qwen/DashScope Python package yet, using their HTTP API directly
+
+# Database
+alembic>=1.11.1
+sqlite3-adapter>=0.2.0
+
+# Development dependencies
+pytest>=7.4.3
+black>=23.10.1
+flake8>=6.1.0
+mypy>=1.6.1
+isort>=5.12.0 
