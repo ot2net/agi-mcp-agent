@@ -47,6 +47,33 @@ mcp_task = None
 # Dictionary to store environments
 environments = {}
 
+# Flag to track if MCP is running
+is_mcp_running = False
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the system on startup."""
+    global is_mcp_running
+    try:
+        # Start the MCP
+        asyncio.create_task(mcp.start())
+        is_mcp_running = True
+        logger.info("MCP started successfully on server startup")
+    except Exception as e:
+        logger.error(f"Failed to start MCP on startup: {str(e)}")
+        is_mcp_running = False
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up on shutdown."""
+    global is_mcp_running
+    try:
+        # Stop the MCP
+        mcp.stop()
+        is_mcp_running = False
+        logger.info("MCP stopped successfully on server shutdown")
+    except Exception as e:
+        logger.error(f"Error stopping MCP on shutdown: {str(e)}")
 
 # Models for API requests and responses
 class AgentCreate(BaseModel):
@@ -235,27 +262,40 @@ async def create_task(task: TaskCreate):
     Returns:
         The created task
     """
-    new_task = Task(
-        name=task.name,
-        description=task.description,
-        priority=task.priority,
-        metadata=task.metadata,
-        dependencies=task.dependencies,
-    )
-    
-    mcp.add_task(new_task)
-    
-    return {
-        "id": new_task.id,
-        "name": new_task.name,
-        "description": new_task.description,
-        "status": new_task.status,
-        "agent_id": new_task.agent_id,
-        "priority": new_task.priority,
-        "created_at": new_task.created_at.isoformat(),
-        "started_at": new_task.started_at.isoformat() if new_task.started_at else None,
-        "completed_at": new_task.completed_at.isoformat() if new_task.completed_at else None,
-    }
+    if not is_mcp_running:
+        raise HTTPException(
+            status_code=503,
+            detail="MCP is not running. Please ensure the system is started."
+        )
+
+    try:
+        new_task = Task(
+            name=task.name,
+            description=task.description,
+            priority=task.priority,
+            metadata=task.metadata,
+            dependencies=task.dependencies,
+        )
+        
+        mcp.add_task(new_task)
+        
+        return {
+            "id": new_task.id,
+            "name": new_task.name,
+            "description": new_task.description,
+            "status": new_task.status,
+            "agent_id": new_task.agent_id,
+            "priority": new_task.priority,
+            "created_at": new_task.created_at.isoformat(),
+            "started_at": new_task.started_at.isoformat() if new_task.started_at else None,
+            "completed_at": new_task.completed_at.isoformat() if new_task.completed_at else None,
+        }
+    except Exception as e:
+        logger.error(f"Error creating task: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating task: {str(e)}"
+        )
 
 
 @app.get("/tasks/", response_model=List[TaskResponse])
@@ -265,20 +305,33 @@ async def list_tasks():
     Returns:
         List of tasks
     """
-    return [
-        {
-            "id": task.id,
-            "name": task.name,
-            "description": task.description,
-            "status": task.status,
-            "agent_id": task.agent_id,
-            "priority": task.priority,
-            "created_at": task.created_at.isoformat(),
-            "started_at": task.started_at.isoformat() if task.started_at else None,
-            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
-        }
-        for task in mcp.tasks.values()
-    ]
+    if not is_mcp_running:
+        raise HTTPException(
+            status_code=503,
+            detail="MCP is not running. Please ensure the system is started."
+        )
+
+    try:
+        return [
+            {
+                "id": task.id,
+                "name": task.name,
+                "description": task.description,
+                "status": task.status,
+                "agent_id": task.agent_id,
+                "priority": task.priority,
+                "created_at": task.created_at.isoformat(),
+                "started_at": task.started_at.isoformat() if task.started_at else None,
+                "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            }
+            for task in mcp.tasks.values()
+        ]
+    except Exception as e:
+        logger.error(f"Error listing tasks: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing tasks: {str(e)}"
+        )
 
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -291,21 +344,36 @@ async def get_task(task_id: str):
     Returns:
         The task
     """
-    task = mcp.get_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    return {
-        "id": task.id,
-        "name": task.name,
-        "description": task.description,
-        "status": task.status,
-        "agent_id": task.agent_id,
-        "priority": task.priority,
-        "created_at": task.created_at.isoformat(),
-        "started_at": task.started_at.isoformat() if task.started_at else None,
-        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
-    }
+    if not is_mcp_running:
+        raise HTTPException(
+            status_code=503,
+            detail="MCP is not running. Please ensure the system is started."
+        )
+
+    try:
+        task = mcp.get_task(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        return {
+            "id": task.id,
+            "name": task.name,
+            "description": task.description,
+            "status": task.status,
+            "agent_id": task.agent_id,
+            "priority": task.priority,
+            "created_at": task.created_at.isoformat(),
+            "started_at": task.started_at.isoformat() if task.started_at else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting task: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting task: {str(e)}"
+        )
 
 
 @app.get("/system/status", response_model=SystemStatusResponse)

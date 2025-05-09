@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -9,6 +10,12 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-blue-600 dark:text-blue-400">AGI-MCP-Agent</h1>
           </div>
           <div className="flex space-x-4">
+            <Link 
+              href="/tasks"
+              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            >
+              Task Management
+            </Link>
             <a href="https://github.com/ot2net/agi-mcp-agent" target="_blank" rel="noopener noreferrer" 
                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
               GitHub
