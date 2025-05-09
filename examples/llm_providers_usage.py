@@ -15,6 +15,7 @@ import os
 import sys
 import time
 from typing import Dict, List
+import unittest
 
 # Add the parent directory to the path to ensure imports work
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -26,6 +27,16 @@ logger = logging.getLogger(__name__)
 from agi_mcp_agent.agent.llm_providers.manager import model_manager
 from agi_mcp_agent.agent.llm_agent import LLMAgent, MultiToolLLMAgent
 from agi_mcp_agent.mcp.core import Task
+from agi_mcp_agent.agent.llm_providers.base import (
+    LLMProvider,
+    ModelConfig,
+    ModelResponse,
+    ModelCapability
+)
+from agi_mcp_agent.agent.llm_providers.openai import OpenAIProvider
+from agi_mcp_agent.agent.llm_providers.anthropic import AnthropicProvider
+from agi_mcp_agent.agent.llm_providers.google import GoogleProvider
+from agi_mcp_agent.agent.llm_providers.mistral import MistralProvider
 
 
 async def list_providers_and_models():
@@ -212,5 +223,128 @@ async def main():
     await model_fallback_test()
 
 
+class TestLLMProviders(unittest.TestCase):
+    def setUp(self):
+        """Set up test environment before each test case."""
+        # Load API keys from environment variables
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        self.mistral_api_key = os.getenv("MISTRAL_API_KEY")
+
+        # Initialize providers
+        self.providers = {}
+        if self.openai_api_key:
+            self.providers["openai"] = OpenAIProvider(api_key=self.openai_api_key)
+        if self.anthropic_api_key:
+            self.providers["anthropic"] = AnthropicProvider(api_key=self.anthropic_api_key)
+        if self.google_api_key:
+            self.providers["google"] = GoogleProvider(api_key=self.google_api_key)
+        if self.mistral_api_key:
+            self.providers["mistral"] = MistralProvider(api_key=self.mistral_api_key)
+
+    def test_provider_initialization(self):
+        """Test that providers are properly initialized."""
+        for provider_name, provider in self.providers.items():
+            self.assertIsInstance(provider, LLMProvider)
+            self.assertTrue(len(provider.available_models) > 0)
+            self.assertTrue(len(provider.capabilities) > 0)
+
+    def test_model_capabilities(self):
+        """Test that model capabilities are properly defined."""
+        for provider_name, provider in self.providers.items():
+            for capability in provider.capabilities:
+                self.assertIsInstance(capability, ModelCapability)
+                self.assertTrue(len(capability.supported_models) > 0)
+
+    async def async_test_text_generation(self):
+        """Test text generation for each provider."""
+        test_prompt = "Write a short poem about artificial intelligence."
+        
+        for provider_name, provider in self.providers.items():
+            # Get first available model for testing
+            model_name = provider.available_models[0]["id"]
+            
+            config = ModelConfig(
+                model_name=model_name,
+                provider_name=provider_name,
+                temperature=0.7,
+                max_tokens=100
+            )
+
+            # Test regular completion
+            response = await provider.generate_text(test_prompt, config)
+            self.assertIsInstance(response, ModelResponse)
+            self.assertTrue(len(response.text) > 0)
+            self.assertEqual(response.model_name, model_name)
+            self.assertEqual(response.provider_name, provider_name)
+
+            # Test streaming completion
+            async for chunk in provider.generate_text(test_prompt, config, stream=True):
+                self.assertIsInstance(chunk, ModelResponse)
+                self.assertTrue(hasattr(chunk, 'text'))
+
+    async def async_test_chat_completion(self):
+        """Test chat completion for each provider."""
+        test_messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "What is the capital of France?"}
+        ]
+
+        for provider_name, provider in self.providers.items():
+            if not provider.model_supports_capability(
+                provider.available_models[0]["id"], 
+                "chat_completion"
+            ):
+                continue
+
+            config = ModelConfig(
+                model_name=provider.available_models[0]["id"],
+                provider_name=provider_name
+            )
+
+            response = await provider.generate_chat_completion(test_messages, config)
+            self.assertIsInstance(response, ModelResponse)
+            self.assertTrue("Paris" in response.text)
+
+    async def async_test_embeddings(self):
+        """Test embedding generation for each provider."""
+        test_texts = ["Hello, world!", "This is a test."]
+
+        for provider_name, provider in self.providers.items():
+            if not provider.model_supports_capability(
+                provider.available_models[0]["id"], 
+                "embeddings"
+            ):
+                continue
+
+            config = ModelConfig(
+                model_name=provider.available_models[0]["id"],
+                provider_name=provider_name
+            )
+
+            embeddings = await provider.generate_embeddings(test_texts, config)
+            self.assertIsInstance(embeddings, list)
+            self.assertEqual(len(embeddings), len(test_texts))
+            self.assertTrue(all(isinstance(emb, list) for emb in embeddings))
+
+    def test_api_key_validation(self):
+        """Test API key validation for each provider."""
+        for provider_name, provider in self.providers.items():
+            self.assertTrue(provider.validate_api_key())
+
+        # Test with invalid API key
+        with self.assertRaises(Exception):
+            OpenAIProvider(api_key="invalid_key").validate_api_key()
+
+    def run_async_tests(self):
+        """Helper method to run async tests."""
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.async_test_text_generation())
+        loop.run_until_complete(self.async_test_chat_completion())
+        loop.run_until_complete(self.async_test_embeddings())
+
+
 if __name__ == "__main__":
     asyncio.run(main())
+    unittest.main()

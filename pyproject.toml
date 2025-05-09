@@ -27,7 +27,6 @@ python-multipart = "^0.0.6"
 anthropic = "^0.8.0"
 mistralai = "^0.0.9"
 google-generativeai = "^0.3.0"
-sqlite3-adapter = "^0.2.0"
 alembic = "^1.11.1"
 
 [tool.poetry.group.dev.dependencies]
@@ -40,6 +39,7 @@ mypy = "^1.6.1"
 pre-commit = "^3.5.0"
 sphinx = "^7.2.6"
 sphinx-rtd-theme = "^1.3.0"
+pytest-asyncio = "<0.26.0"
 
 [tool.poetry.scripts]
 agi-mcp-agent-api = "agi_mcp_agent.api.server:start_server"
