@@ -54,7 +54,7 @@ export function TaskList({ tasks }: TaskListProps) {
     return (
       <div className="text-center py-12">
         <svg
-          className="mx-auto h-12 w-12 text-gray-400"
+          className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -74,10 +74,13 @@ export function TaskList({ tasks }: TaskListProps) {
   }
 
   return (
-    <div className="overflow-hidden bg-white dark:bg-gray-800 shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+    <div className="overflow-hidden">
       <ul role="list" className="divide-y divide-gray-200 dark:divide-gray-700">
         {tasks.map((task) => (
-          <li key={task.id} className="relative flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 dark:hover:bg-gray-700 sm:px-6">
+          <li 
+            key={task.id} 
+            className="relative flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
+          >
             <div className="flex min-w-0 gap-x-4">
               <div className="min-w-0 flex-auto">
                 <div className="flex items-center gap-x-3">
