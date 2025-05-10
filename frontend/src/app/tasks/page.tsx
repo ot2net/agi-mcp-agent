@@ -7,7 +7,7 @@ import { LoadingState } from '@/components/LoadingState';
 import { Task } from '@/types/task';
 import { Card } from '@/components/base/Card';
 import { Button } from '@/components/base/Button';
-import { HiOutlinePlus, HiOutlineServer } from 'react-icons/hi';
+import { HiOutlinePlus, HiOutlineServer, HiOutlineRefresh } from 'react-icons/hi';
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -60,10 +60,20 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 max-w-5xl mx-auto">
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* 左侧：表单卡片 */}
-        <div className="flex-1 min-w-0">
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Tasks</h1>
+        <Button
+          variant="outline"
+          onClick={fetchTasks}
+          className="animate-fade-in"
+          icon={<HiOutlineRefresh className="w-5 h-5" />}
+        >
+          Refresh
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div>
           <Card
             title="Create New Task"
             description="Configure and create a new AI task"
@@ -73,8 +83,7 @@ export default function TasksPage() {
             <TaskForm onSubmit={handleCreateTask} />
           </Card>
         </div>
-        {/* 右侧：任务列表卡片 */}
-        <div className="flex-1 min-w-0">
+        <div>
           <Card
             title="Task List"
             description="View and manage your AI tasks"
@@ -100,16 +109,6 @@ export default function TasksPage() {
             </div>
           </Card>
         </div>
-      </div>
-      {/* 底部操作栏 */}
-      <div className="flex justify-end gap-2">
-        <Button 
-          variant="secondary" 
-          onClick={() => fetchTasks()}
-          className="animate-fade-in"
-        >
-          Refresh
-        </Button>
       </div>
     </div>
   );

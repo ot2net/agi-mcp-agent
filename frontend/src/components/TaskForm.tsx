@@ -52,75 +52,73 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
   };
 
   return (
-    <Card title="Create New Task" description="Configure and create a new AI task">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <FormField
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <FormField
+        id="name"
+        label="Task Name"
+        required
+      >
+        <Input
           id="name"
-          label="Task Name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          placeholder="Enter task name"
           required
-        >
-          <Input
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Enter task name"
-            required
-          />
-        </FormField>
+        />
+      </FormField>
 
-        <FormField
+      <FormField
+        id="description"
+        label="Description"
+        required
+      >
+        <Input
           id="description"
-          label="Description"
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          placeholder="Enter task description"
           required
-        >
-          <Input
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Enter task description"
-            required
-          />
-        </FormField>
+        />
+      </FormField>
 
-        <FormField
+      <FormField
+        id="model_identifier"
+        label="Model"
+        required
+      >
+        <Select
           id="model_identifier"
-          label="Model"
-          required
-        >
-          <Select
-            id="model_identifier"
-            name="model_identifier"
-            value={formData.model_identifier}
-            onChange={handleChange}
-            options={modelOptions}
-          />
-        </FormField>
+          name="model_identifier"
+          value={formData.model_identifier}
+          onChange={handleChange}
+          options={modelOptions}
+        />
+      </FormField>
 
-        <FormField
+      <FormField
+        id="prompt"
+        label="Prompt"
+        required
+        helperText="Enter the instructions or prompt for the AI model"
+      >
+        <TextArea
           id="prompt"
-          label="Prompt"
+          name="prompt"
+          value={formData.prompt}
+          onChange={handleChange}
+          placeholder="Enter your prompt here..."
           required
-          helperText="Enter the instructions or prompt for the AI model"
-        >
-          <TextArea
-            id="prompt"
-            name="prompt"
-            value={formData.prompt}
-            onChange={handleChange}
-            placeholder="Enter your prompt here..."
-            required
-            rows={4}
-          />
-        </FormField>
+          rows={4}
+        />
+      </FormField>
 
-        <div className="flex justify-end">
-          <Button type="submit">
-            Create Task
-          </Button>
-        </div>
-      </form>
-    </Card>
+      <div className="flex justify-end">
+        <Button type="submit">
+          Create Task
+        </Button>
+      </div>
+    </form>
   );
 } 
