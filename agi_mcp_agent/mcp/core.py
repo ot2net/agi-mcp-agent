@@ -2,206 +2,243 @@
 
 import asyncio
 import logging
-import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from pydantic import BaseModel, Field
-
-from agi_mcp_agent.agent.base import Agent
+from agi_mcp_agent.mcp.models import Agent, Task, SystemLog, SystemStatus
+from agi_mcp_agent.mcp.repository import MCPRepository
+from agi_mcp_agent.mcp.llm_service import LLMService
+from agi_mcp_agent.mcp.llm_models import (
+    LLMProvider, LLMModel, LLMRequest, LLMResponse,
+    LLMEmbeddingRequest, LLMEmbeddingResponse
+)
 
 logger = logging.getLogger(__name__)
-
-
-class Task(BaseModel):
-    """Task representation for the MCP scheduler."""
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    description: str
-    status: str = "pending"  # pending, running, completed, failed
-    agent_id: Optional[str] = None
-    priority: int = 5  # 1-10 scale, 10 being highest
-    created_at: datetime = Field(default_factory=datetime.now)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    dependencies: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class MasterControlProgram:
     """Master Control Program for agent orchestration and task management."""
 
-    def __init__(self):
-        """Initialize the MCP."""
-        self.agents: Dict[str, Agent] = {}
-        self.tasks: Dict[str, Task] = {}
-        self.running = False
-        logger.info("Master Control Program initialized")
+    def __init__(self, database_url: str):
+        """Initialize the MCP.
 
-    def register_agent(self, agent: Agent) -> str:
+        Args:
+            database_url: The database connection URL
+        """
+        self.repository = MCPRepository(database_url)
+        self.llm_service = LLMService(self.repository)
+        self.running = False
+        self._log_system_event("info", "MCP initialized")
+
+    def _log_system_event(self, level: str, message: str, metadata: Optional[Dict] = None):
+        """Log a system event.
+
+        Args:
+            level: The log level
+            message: The log message
+            metadata: Optional metadata to include
+        """
+        log = SystemLog(
+            level=level,
+            component="mcp",
+            message=message,
+            metadata=metadata
+        )
+        self.repository.add_system_log(log)
+
+    async def register_agent(self, agent: Agent) -> Optional[int]:
         """Register an agent with the MCP.
 
         Args:
             agent: The agent to register
 
         Returns:
-            The agent's ID
+            The agent's ID if successful
         """
-        if agent.id in self.agents:
-            logger.warning(f"Agent {agent.id} already registered")
-            return agent.id
+        created_agent = self.repository.create_agent(agent)
+        if created_agent and created_agent.id:
+            self._log_system_event(
+                "info",
+                f"Registered agent {created_agent.name}",
+                {"agent_id": created_agent.id}
+            )
+            return created_agent.id
+        return None
 
-        self.agents[agent.id] = agent
-        logger.info(f"Registered agent {agent.id}")
-        return agent.id
-
-    def unregister_agent(self, agent_id: str) -> bool:
-        """Unregister an agent from the MCP.
+    async def create_task(self, task: Task) -> Optional[int]:
+        """Create a new task.
 
         Args:
-            agent_id: The ID of the agent to unregister
+            task: The task to create
 
         Returns:
-            Whether the agent was successfully unregistered
+            The task's ID if successful
         """
-        if agent_id not in self.agents:
-            logger.warning(f"Agent {agent_id} not found")
-            return False
+        created_task = self.repository.create_task(task)
+        if created_task and created_task.id:
+            self._log_system_event(
+                "info",
+                f"Created task {created_task.name}",
+                {"task_id": created_task.id}
+            )
+            return created_task.id
+        return None
 
-        del self.agents[agent_id]
-        logger.info(f"Unregistered agent {agent_id}")
-        return True
-
-    def add_task(self, task: Task) -> str:
-        """Add a task to the MCP scheduler.
+    async def update_task_status(self, task_id: int, status: str,
+                               output_data: Optional[Dict] = None,
+                               error_message: Optional[str] = None) -> bool:
+        """Update a task's status.
 
         Args:
-            task: The task to add
+            task_id: The ID of the task to update
+            status: The new status
+            output_data: Optional output data
+            error_message: Optional error message
 
         Returns:
-            The task ID
+            Whether the update was successful
         """
-        self.tasks[task.id] = task
-        logger.info(f"Added task {task.id}: {task.name}")
-        return task.id
+        success = self.repository.update_task_status(
+            task_id, status, output_data, error_message
+        )
+        if success:
+            self._log_system_event(
+                "info",
+                f"Updated task {task_id} status to {status}",
+                {
+                    "task_id": task_id,
+                    "status": status,
+                    "has_output": bool(output_data),
+                    "has_error": bool(error_message)
+                }
+            )
+        return success
 
-    def get_task(self, task_id: str) -> Optional[Task]:
-        """Get a task by ID.
+    async def get_system_status(self) -> Optional[SystemStatus]:
+        """Get the current system status.
+
+        Returns:
+            The current system status
+        """
+        return self.repository.get_system_status()
+
+    # LLM-specific methods
+    async def register_llm_provider(self, provider: LLMProvider) -> Optional[int]:
+        """Register a new LLM provider.
 
         Args:
-            task_id: The ID of the task to retrieve
+            provider: The provider configuration
 
         Returns:
-            The task, if found
+            The provider's ID if successful
         """
-        return self.tasks.get(task_id)
+        provider_id = await self.llm_service.create_provider(provider)
+        if provider_id:
+            self._log_system_event(
+                "info",
+                f"Registered LLM provider {provider.name}",
+                {"provider_id": provider_id}
+            )
+        return provider_id
 
-    def _get_next_task(self) -> Optional[Task]:
-        """Get the next available task based on priority and dependencies.
-
-        Returns:
-            The next task to execute, if any
-        """
-        available_tasks = []
-        for task in self.tasks.values():
-            if task.status != "pending":
-                continue
-
-            # Check dependencies
-            dependencies_met = True
-            for dep_id in task.dependencies:
-                dep_task = self.tasks.get(dep_id)
-                if not dep_task or dep_task.status != "completed":
-                    dependencies_met = False
-                    break
-
-            if dependencies_met:
-                available_tasks.append(task)
-
-        if not available_tasks:
-            return None
-
-        # Sort by priority (highest first)
-        available_tasks.sort(key=lambda t: t.priority, reverse=True)
-        return available_tasks[0]
-
-    def _assign_task_to_agent(self, task: Task) -> bool:
-        """Assign a task to an available agent.
+    async def register_llm_model(self, model: LLMModel) -> Optional[int]:
+        """Register a new LLM model.
 
         Args:
-            task: The task to assign
+            model: The model configuration
 
         Returns:
-            Whether the task was successfully assigned
+            The model's ID if successful
         """
-        # Simple round-robin assignment for now
-        # This should be replaced with a more sophisticated algorithm
-        # that considers agent capabilities, load, etc.
-        for agent_id, agent in self.agents.items():
-            if agent.is_available():
-                task.agent_id = agent_id
-                task.status = "running"
-                task.started_at = datetime.now()
-                agent.assign_task(task)
-                logger.info(f"Assigned task {task.id} to agent {agent_id}")
-                return True
+        model_id = await self.llm_service.create_model(model)
+        if model_id:
+            self._log_system_event(
+                "info",
+                f"Registered LLM model {model.model_name}",
+                {"model_id": model_id}
+            )
+        return model_id
 
-        logger.warning(f"No available agents to handle task {task.id}")
-        return False
+    async def generate_completion(self, request: LLMRequest) -> Optional[LLMResponse]:
+        """Generate a completion using the specified model.
+
+        Args:
+            request: The completion request
+
+        Returns:
+            The completion response if successful
+        """
+        response = await self.llm_service.generate_completion(request)
+        if response:
+            self._log_system_event(
+                "info",
+                f"Generated completion using model {request.model_id}",
+                {
+                    "request_id": response.request_id,
+                    "model_id": request.model_id,
+                    "usage": response.usage
+                }
+            )
+        return response
+
+    async def generate_embeddings(self, request: LLMEmbeddingRequest) -> Optional[LLMEmbeddingResponse]:
+        """Generate embeddings using the specified model.
+
+        Args:
+            request: The embedding request
+
+        Returns:
+            The embedding response if successful
+        """
+        response = await self.llm_service.generate_embeddings(request)
+        if response:
+            self._log_system_event(
+                "info",
+                f"Generated embeddings using model {request.model_id}",
+                {
+                    "request_id": response.request_id,
+                    "model_id": request.model_id,
+                    "usage": response.usage
+                }
+            )
+        return response
 
     async def start(self):
         """Start the MCP."""
         self.running = True
-        logger.info("Master Control Program started")
+        self._log_system_event("info", "MCP started")
 
         while self.running:
-            # Process scheduling
-            next_task = self._get_next_task()
-            if next_task and not self._assign_task_to_agent(next_task):
-                # No agents available, wait a bit
-                await asyncio.sleep(1)
-                continue
+            try:
+                # Get system status
+                status = await self.get_system_status()
+                if status:
+                    # Log system status periodically
+                    if status.running_tasks > 0 or status.pending_tasks > 0:
+                        self._log_system_event(
+                            "debug",
+                            "System status update",
+                            status.dict()
+                        )
 
-            # Update task statuses
-            for agent_id, agent in self.agents.items():
-                if not agent.is_available() and agent.current_task_id:
-                    task_id = agent.current_task_id
-                    if task_id in self.tasks and self.tasks[task_id].status == "running":
-                        if agent.is_task_complete(task_id):
-                            self.tasks[task_id].status = "completed"
-                            self.tasks[task_id].completed_at = datetime.now()
-                            logger.info(f"Task {task_id} completed by agent {agent_id}")
+                # TODO: Implement task scheduling and agent assignment logic
+                # This would involve:
+                # 1. Querying for pending tasks
+                # 2. Finding available agents
+                # 3. Matching tasks to agents based on capabilities
+                # 4. Updating task status and agent assignments
 
-            await asyncio.sleep(0.1)  # Prevent CPU overuse
+                await asyncio.sleep(1)  # Prevent CPU overuse
+
+            except Exception as e:
+                self._log_system_event(
+                    "error",
+                    f"Error in MCP main loop: {str(e)}",
+                    {"error": str(e)}
+                )
+                await asyncio.sleep(5)  # Wait before retrying
 
     def stop(self):
         """Stop the MCP."""
         self.running = False
-        logger.info("Master Control Program stopped")
-
-    def get_system_status(self) -> Dict[str, Any]:
-        """Get the current system status.
-
-        Returns:
-            A dictionary containing system status information
-        """
-        task_stats = {
-            "pending": sum(1 for t in self.tasks.values() if t.status == "pending"),
-            "running": sum(1 for t in self.tasks.values() if t.status == "running"),
-            "completed": sum(1 for t in self.tasks.values() if t.status == "completed"),
-            "failed": sum(1 for t in self.tasks.values() if t.status == "failed"),
-        }
-
-        agent_stats = {
-            "total": len(self.agents),
-            "available": sum(1 for a in self.agents.values() if a.is_available()),
-            "busy": sum(1 for a in self.agents.values() if not a.is_available()),
-        }
-
-        return {
-            "running": self.running,
-            "tasks": task_stats,
-            "agents": agent_stats,
-            "timestamp": datetime.now(),
-        } 
+        self._log_system_event("info", "MCP stopped") 

@@ -28,6 +28,7 @@ anthropic = "^0.8.0"
 mistralai = "^0.0.9"
 google-generativeai = "^0.3.0"
 alembic = "^1.11.1"
+psycopg2-binary = "^2.9.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
@@ -43,6 +44,9 @@ pytest-asyncio = "<0.26.0"
 
 [tool.poetry.scripts]
 agi-mcp-agent-api = "agi_mcp_agent.api.server:start_server"
+llm-example = "examples.llm_example:main"
+db-init = "scripts.db_init:init_database"
+db-test = "scripts.db_test:test_database"
 
 [build-system]
 requires = ["poetry-core"]
