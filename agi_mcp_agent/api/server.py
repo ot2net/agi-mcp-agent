@@ -188,6 +188,7 @@ class SystemStatusResponse(BaseModel):
     running: bool
     tasks: Dict
     agents: Dict
+    system_load: float
     timestamp: str
 
 
@@ -544,6 +545,7 @@ async def get_system_status():
             "total": status.total_agents,
             "active": status.active_agents
         },
+        "system_load": status.system_load,
         "timestamp": status.timestamp.isoformat()
     }
     
