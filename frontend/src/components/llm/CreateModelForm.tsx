@@ -16,7 +16,10 @@ export function CreateModelForm() {
     provider_id: 0,
     model_name: '',
     capability: 'chat',
-    params: {},
+    params: {
+      temperature: 0.7,
+      max_tokens: 1000
+    },
   });
 
   useEffect(() => {
@@ -59,25 +62,41 @@ export function CreateModelForm() {
     }
   };
 
-  const handleParamsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    try {
-      const params = JSON.parse(e.target.value);
-      setFormData(prevData => ({
-        ...prevData,
-        params,
-      }));
-    } catch (error) {
-      // Silently ignore invalid JSON - will validate on submit
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     
+    // Automatically set appropriate default parameters based on capability
+    let updatedParams = {...formData.params};
+    
+    if (formData.capability === 'chat') {
+      updatedParams = {
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 0.95,
+        frequency_penalty: 0,
+        presence_penalty: 0
+      };
+    } else if (formData.capability === 'embedding') {
+      updatedParams = {
+        dimensions: 1536
+      };
+    } else if (formData.capability === 'completion') {
+      updatedParams = {
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 0.95
+      };
+    }
+    
+    const finalFormData = {
+      ...formData,
+      params: updatedParams
+    };
+    
     try {
       setIsLoading(true);
-      await createModel(formData);
+      await createModel(finalFormData);
       router.push('/llm/models');
       router.refresh();
     } catch (error) {
@@ -87,6 +106,45 @@ export function CreateModelForm() {
       setIsLoading(false);
     }
   };
+
+  const presetModels = {
+    openai: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-vision-preview', 'text-embedding-ada-002'],
+    anthropic: ['claude-2', 'claude-instant-1'],
+    mistral: ['mistral-tiny', 'mistral-small', 'mistral-medium'],
+    cohere: ['command', 'command-light', 'embed-english-v3.0'],
+  };
+
+  const getModelSuggestions = () => {
+    const provider = providers.find(p => p.id === formData.provider_id);
+    if (!provider) return [];
+    
+    const providerType = provider.type as keyof typeof presetModels;
+    return presetModels[providerType] || [];
+  };
+
+  // Auto-select popular models when provider changes
+  useEffect(() => {
+    const provider = providers.find(p => p.id === formData.provider_id);
+    if (!provider) return;
+    
+    const providerType = provider.type as keyof typeof presetModels;
+    const models = presetModels[providerType] || [];
+    
+    // For embedding capability, auto-select embedding model when available
+    if (formData.capability === 'embedding' && providerType === 'openai') {
+      setFormData(prev => ({
+        ...prev,
+        model_name: 'text-embedding-ada-002'
+      }));
+    } 
+    // For chat capability, auto-select first chat model when available
+    else if (formData.capability === 'chat' && models.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        model_name: models[0]
+      }));
+    }
+  }, [formData.provider_id, formData.capability, providers]);
 
   if (isLoadingProviders) {
     return <div className="text-center py-4">Loading providers...</div>;
@@ -111,82 +169,79 @@ export function CreateModelForm() {
         </div>
       )}
       
-      <div>
-        <label htmlFor="provider_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Provider *
-        </label>
-        <select
-          id="provider_id"
-          name="provider_id"
-          required
-          value={formData.provider_id}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-        >
-          {providers.map(provider => (
-            <option key={provider.id} value={provider.id}>
-              {provider.name} ({provider.type})
-            </option>
-          ))}
-        </select>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-medium mb-4">Basic Information</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="provider_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Provider *
+            </label>
+            <select
+              id="provider_id"
+              name="provider_id"
+              required
+              value={formData.provider_id}
+              onChange={handleChange}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
+            >
+              {providers.map(provider => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name} ({provider.type})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="model_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Model Name *
+            </label>
+            <input
+              id="model_name"
+              name="model_name"
+              type="text"
+              required
+              list="model-suggestions"
+              value={formData.model_name}
+              onChange={handleChange}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
+              placeholder="e.g., gpt-3.5-turbo"
+            />
+            <datalist id="model-suggestions">
+              {getModelSuggestions().map(model => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
+          </div>
+        </div>
+        
+        <div className="mt-4">
+          <label htmlFor="capability" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Capability *
+          </label>
+          <div className="flex flex-wrap gap-3 mt-1">
+            {['chat', 'embedding', 'completion'].map(capability => (
+              <label key={capability} className="flex items-center">
+                <input
+                  type="radio"
+                  name="capability"
+                  value={capability}
+                  checked={formData.capability === capability}
+                  onChange={handleChange}
+                  className="rounded-full text-blue-600 focus:ring-blue-500 h-4 w-4"
+                />
+                <span className="ml-2 text-sm capitalize">{capability}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="model_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Model Name *
-        </label>
-        <input
-          id="model_name"
-          name="model_name"
-          type="text"
-          required
-          value={formData.model_name}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-          placeholder="Example: gpt-3.5-turbo"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="capability" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Capability *
-        </label>
-        <select
-          id="capability"
-          name="capability"
-          required
-          value={formData.capability}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-        >
-          <option value="chat">Chat</option>
-          <option value="embedding">Embedding</option>
-          <option value="completion">Completion</option>
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor="params" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Parameters (JSON format)
-        </label>
-        <textarea
-          id="params"
-          name="params"
-          rows={6}
-          onChange={handleParamsChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-          placeholder='Example: {"temperature": 0.7, "max_tokens": 1000}'
-        />
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Enter model parameters in JSON format
-        </p>
-      </div>
-
-      <div className="flex justify-end">
+      <div className="flex justify-end space-x-4">
         <Button
           type="button"
           variant="outline"
-          className="mr-4"
           onClick={() => router.back()}
         >
           Cancel

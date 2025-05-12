@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/base/Button';
 import { LLMProviderCreate } from '@/types/llm';
@@ -17,24 +17,25 @@ export function CreateProviderForm() {
   });
   const [error, setError] = useState<string | null>(null);
 
+  // Update name automatically based on provider type
+  useEffect(() => {
+    if (!formData.name || formData.name === 'OpenAI' || formData.name === 'Anthropic' || 
+        formData.name === 'Mistral AI' || formData.name === 'Google AI') {
+      const providerOption = providerOptions.find(p => p.value === formData.type);
+      if (providerOption) {
+        setFormData(prev => ({
+          ...prev,
+          name: providerOption.label
+        }));
+      }
+    }
+  }, [formData.type]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prevData => ({
       ...prevData,
       [name]: value,
-    }));
-  };
-
-  const handleModelsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    // Split models by comma or newline
-    const modelsList = e.target.value
-      .split(/[,\n]/)
-      .map(model => model.trim())
-      .filter(model => model !== '');
-    
-    setFormData(prevData => ({
-      ...prevData,
-      models: modelsList,
     }));
   };
 
@@ -45,7 +46,7 @@ export function CreateProviderForm() {
     try {
       setIsLoading(true);
       await createProvider(formData);
-      router.push('/llm/providers');
+      router.push('/llm');
       router.refresh();
     } catch (error) {
       console.error('Error creating provider:', error);
@@ -55,6 +56,18 @@ export function CreateProviderForm() {
     }
   };
 
+  const providerOptions = [
+    { value: 'openai', label: 'OpenAI', keyFormat: 'sk-...', docLink: 'https://platform.openai.com/account/api-keys' },
+    { value: 'anthropic', label: 'Anthropic', keyFormat: 'sk-ant-...', docLink: 'https://console.anthropic.com/keys' },
+    { value: 'google', label: 'Google AI', keyFormat: 'AIza...', docLink: 'https://ai.google.dev/' },
+    { value: 'mistral', label: 'Mistral AI', keyFormat: 'MISTRAL_API_KEY', docLink: 'https://docs.mistral.ai/' },
+    { value: 'huggingface', label: 'Hugging Face', keyFormat: 'hf_...', docLink: 'https://huggingface.co/settings/tokens' },
+    { value: 'cohere', label: 'Cohere', keyFormat: 'COHERE_API_KEY', docLink: 'https://dashboard.cohere.com/api-keys' },
+    { value: 'deepseek', label: 'DeepSeek', keyFormat: 'DEEPSEEK_API_KEY', docLink: 'https://platform.deepseek.com/' },
+  ];
+
+  const selectedProvider = providerOptions.find(p => p.value === formData.type) || providerOptions[0];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -63,84 +76,81 @@ export function CreateProviderForm() {
         </div>
       )}
       
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Name *
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          required
-          value={formData.name}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-          placeholder="Example: OpenAI"
-        />
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-medium mb-4">Provider Information</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Provider Type *
+            </label>
+            <select
+              id="type"
+              name="type"
+              required
+              value={formData.type}
+              onChange={handleChange}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
+            >
+              {providerOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Display Name *
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              value={formData.name}
+              onChange={handleChange}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
+              placeholder="My OpenAI Account"
+            />
+          </div>
+        </div>
+        
+        <div className="mt-6">
+          <label htmlFor="api_key" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            API Key *
+          </label>
+          <div className="relative">
+            <input
+              id="api_key"
+              name="api_key"
+              type="password"
+              required
+              value={formData.api_key}
+              onChange={handleChange}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
+              placeholder={selectedProvider.keyFormat}
+            />
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <p>Format: {selectedProvider.keyFormat}</p>
+            <a 
+              href={selectedProvider.docLink} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              Get API Key
+            </a>
+          </div>
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Type *
-        </label>
-        <select
-          id="type"
-          name="type"
-          required
-          value={formData.type}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-        >
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="google">Google</option>
-          <option value="mistral">Mistral</option>
-          <option value="huggingface">Hugging Face</option>
-          <option value="llama">Llama</option>
-          <option value="cohere">Cohere</option>
-          <option value="deepseek">DeepSeek</option>
-          <option value="qwen">Qwen</option>
-          <option value="rest">REST API</option>
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor="api_key" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          API Key
-        </label>
-        <input
-          id="api_key"
-          name="api_key"
-          type="password"
-          value={formData.api_key || ''}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-          placeholder="Example: sk-xxxx"
-        />
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          The API key entered here will be securely stored
-        </p>
-      </div>
-
-      <div>
-        <label htmlFor="models" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Supported Models
-        </label>
-        <textarea
-          id="models"
-          name="models"
-          rows={4}
-          onChange={handleModelsChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-          placeholder="One model name per line, or separate with commas"
-        />
-      </div>
-
-      <div className="flex justify-end">
+      <div className="flex justify-end space-x-4">
         <Button
           type="button"
           variant="outline"
-          className="mr-4"
           onClick={() => router.back()}
         >
           Cancel
