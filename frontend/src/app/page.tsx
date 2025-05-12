@@ -2,7 +2,7 @@
 
 import { SystemStatusCard } from '@/components/SystemStatusCard';
 import { Card } from '@/components/base/Card';
-import { HiOutlineCode, HiOutlineChartBar, HiOutlineServer, HiOutlineDatabase } from 'react-icons/hi';
+import { HiOutlineCode, HiOutlineChartBar, HiOutlineServer, HiOutlineDatabase, HiOutlineChip } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function Home() {
@@ -55,6 +55,19 @@ export default function Home() {
           >
             <p className="text-gray-600 dark:text-gray-400">
               Define environments where agents can securely access tools, data sources, and external services.
+            </p>
+          </Card>
+        </Link>
+        
+        <Link href="/llm" className="block">
+          <Card
+            title="LLM Models"
+            description="Manage LLM models and providers"
+            icon={<HiOutlineChip className="w-6 h-6" />}
+            className="h-full hover:border-blue-500 cursor-pointer"
+          >
+            <p className="text-gray-600 dark:text-gray-400">
+              Configure and manage large language models and their providers for your AI agents.
             </p>
           </Card>
         </Link>

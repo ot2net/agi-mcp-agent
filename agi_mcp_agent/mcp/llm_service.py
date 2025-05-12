@@ -449,4 +449,435 @@ class LLMService:
         except Exception as e:
             logger.error(f"Error generating embeddings: {e}")
             logger.error(traceback.format_exc())
-            return None 
+            return None
+
+    async def get_all_providers(self) -> List[LLMProvider]:
+        """Get all LLM providers.
+
+        Returns:
+            List of all LLM providers
+        """
+        try:
+            with self.repository._get_session() as session:
+                query = text("""
+                    SELECT id, name, type, api_key, models, status, metadata
+                    FROM llm_providers
+                    ORDER BY name
+                """)
+                results = session.execute(query).fetchall()
+                
+                providers = []
+                for result in results:
+                    # Extract fields
+                    provider_id = result[0]
+                    name = result[1]
+                    provider_type = result[2]
+                    api_key = result[3]
+                    models_data = result[4]
+                    status = result[5]
+                    metadata = result[6]
+                    
+                    # Parse models list
+                    provider_models = []
+                    if models_data:
+                        if isinstance(models_data, list):
+                            provider_models = models_data
+                        elif isinstance(models_data, str):
+                            try:
+                                provider_models = json.loads(models_data)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse models JSON for provider {provider_id}")
+                                provider_models = []
+                    
+                    # Parse metadata
+                    provider_metadata = {}
+                    if metadata:
+                        if isinstance(metadata, str):
+                            try:
+                                provider_metadata = json.loads(metadata)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse metadata JSON for provider {provider_id}")
+                        elif isinstance(metadata, dict):
+                            provider_metadata = metadata
+                    
+                    # Create provider object
+                    provider = LLMProvider(
+                        id=provider_id,
+                        name=name,
+                        type=provider_type,
+                        api_key=api_key,
+                        models=provider_models,
+                        status=status,
+                        metadata=provider_metadata
+                    )
+                    providers.append(provider)
+                
+                return providers
+        except Exception as e:
+            logger.error(f"Error getting all providers: {e}")
+            logger.error(traceback.format_exc())
+            return []
+
+    async def get_all_models(self) -> List[LLMModel]:
+        """Get all LLM models.
+
+        Returns:
+            List of all LLM models
+        """
+        try:
+            with self.repository._get_session() as session:
+                query = text("""
+                    SELECT id, provider_id, model_name, capability, params, status, metadata
+                    FROM llm_models
+                    ORDER BY model_name
+                """)
+                results = session.execute(query).fetchall()
+                
+                models = []
+                for result in results:
+                    # Extract fields
+                    model_id = result[0]
+                    provider_id = result[1]
+                    model_name = result[2]
+                    capability = result[3]
+                    params_data = result[4]
+                    status = result[5]
+                    metadata = result[6]
+                    
+                    # Parse params
+                    model_params = {}
+                    if params_data:
+                        if isinstance(params_data, str):
+                            try:
+                                model_params = json.loads(params_data)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse params JSON for model {model_id}")
+                        elif isinstance(params_data, dict):
+                            model_params = params_data
+                    
+                    # Parse metadata
+                    model_metadata = {}
+                    if metadata:
+                        if isinstance(metadata, str):
+                            try:
+                                model_metadata = json.loads(metadata)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse metadata JSON for model {model_id}")
+                        elif isinstance(metadata, dict):
+                            model_metadata = metadata
+                    
+                    # Create model object
+                    model = LLMModel(
+                        id=model_id,
+                        provider_id=provider_id,
+                        model_name=model_name,
+                        capability=capability,
+                        params=model_params,
+                        status=status,
+                        metadata=model_metadata
+                    )
+                    models.append(model)
+                
+                return models
+        except Exception as e:
+            logger.error(f"Error getting all models: {e}")
+            logger.error(traceback.format_exc())
+            return []
+
+    async def get_models_by_provider(self, provider_id: int) -> List[LLMModel]:
+        """Get models for a specific provider.
+
+        Args:
+            provider_id: The provider ID
+
+        Returns:
+            List of models for the provider
+        """
+        try:
+            with self.repository._get_session() as session:
+                query = text("""
+                    SELECT id, provider_id, model_name, capability, params, status, metadata
+                    FROM llm_models
+                    WHERE provider_id = :provider_id
+                    ORDER BY model_name
+                """)
+                results = session.execute(query, {"provider_id": provider_id}).fetchall()
+                
+                models = []
+                for result in results:
+                    # Extract fields
+                    model_id = result[0]
+                    provider_id = result[1]
+                    model_name = result[2]
+                    capability = result[3]
+                    params_data = result[4]
+                    status = result[5]
+                    metadata = result[6]
+                    
+                    # Parse params
+                    model_params = {}
+                    if params_data:
+                        if isinstance(params_data, str):
+                            try:
+                                model_params = json.loads(params_data)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse params JSON for model {model_id}")
+                        elif isinstance(params_data, dict):
+                            model_params = params_data
+                    
+                    # Parse metadata
+                    model_metadata = {}
+                    if metadata:
+                        if isinstance(metadata, str):
+                            try:
+                                model_metadata = json.loads(metadata)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse metadata JSON for model {model_id}")
+                        elif isinstance(metadata, dict):
+                            model_metadata = metadata
+                    
+                    # Create model object
+                    model = LLMModel(
+                        id=model_id,
+                        provider_id=provider_id,
+                        model_name=model_name,
+                        capability=capability,
+                        params=model_params,
+                        status=status,
+                        metadata=model_metadata
+                    )
+                    models.append(model)
+                
+                return models
+        except Exception as e:
+            logger.error(f"Error getting models by provider: {e}")
+            logger.error(traceback.format_exc())
+            return []
+
+    async def get_provider(self, provider_id: int) -> Optional[LLMProvider]:
+        """Get a provider by ID.
+
+        Args:
+            provider_id: The provider ID
+
+        Returns:
+            The provider, if found
+        """
+        # First check in-memory cache
+        if provider_id in self._providers:
+            return self._providers[provider_id]
+            
+        try:
+            with self.repository._get_session() as session:
+                query = text("""
+                    SELECT id, name, type, api_key, models, status, metadata
+                    FROM llm_providers
+                    WHERE id = :id
+                """)
+                result = session.execute(query, {"id": provider_id}).fetchone()
+                
+                if not result:
+                    return None
+                    
+                # Extract fields
+                provider_id = result[0]
+                name = result[1]
+                provider_type = result[2]
+                api_key = result[3]
+                models_data = result[4]
+                status = result[5]
+                metadata = result[6]
+                
+                # Parse models list
+                provider_models = []
+                if models_data:
+                    if isinstance(models_data, list):
+                        provider_models = models_data
+                    elif isinstance(models_data, str):
+                        try:
+                            provider_models = json.loads(models_data)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to parse models JSON for provider {provider_id}")
+                            provider_models = []
+                
+                # Parse metadata
+                provider_metadata = {}
+                if metadata:
+                    if isinstance(metadata, str):
+                        try:
+                            provider_metadata = json.loads(metadata)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to parse metadata JSON for provider {provider_id}")
+                    elif isinstance(metadata, dict):
+                        provider_metadata = metadata
+                
+                # Create provider object
+                provider = LLMProvider(
+                    id=provider_id,
+                    name=name,
+                    type=provider_type,
+                    api_key=api_key,
+                    models=provider_models,
+                    status=status,
+                    metadata=provider_metadata
+                )
+                
+                # Add to in-memory cache
+                self._providers[provider_id] = provider
+                
+                return provider
+        except Exception as e:
+            logger.error(f"Error getting provider: {e}")
+            logger.error(traceback.format_exc())
+            return None
+
+    async def get_model(self, model_id: int) -> Optional[LLMModel]:
+        """Get a model by ID.
+
+        Args:
+            model_id: The model ID
+
+        Returns:
+            The model, if found
+        """
+        # First check in-memory cache
+        if model_id in self._models:
+            return self._models[model_id]
+            
+        try:
+            with self.repository._get_session() as session:
+                query = text("""
+                    SELECT id, provider_id, model_name, capability, params, status, metadata
+                    FROM llm_models
+                    WHERE id = :id
+                """)
+                result = session.execute(query, {"id": model_id}).fetchone()
+                
+                if not result:
+                    return None
+                    
+                # Extract fields
+                model_id = result[0]
+                provider_id = result[1]
+                model_name = result[2]
+                capability = result[3]
+                params_data = result[4]
+                status = result[5]
+                metadata = result[6]
+                
+                # Parse params
+                model_params = {}
+                if params_data:
+                    if isinstance(params_data, str):
+                        try:
+                            model_params = json.loads(params_data)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to parse params JSON for model {model_id}")
+                    elif isinstance(params_data, dict):
+                        model_params = params_data
+                
+                # Parse metadata
+                model_metadata = {}
+                if metadata:
+                    if isinstance(metadata, str):
+                        try:
+                            model_metadata = json.loads(metadata)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to parse metadata JSON for model {model_id}")
+                    elif isinstance(metadata, dict):
+                        model_metadata = metadata
+                
+                # Create model object
+                model = LLMModel(
+                    id=model_id,
+                    provider_id=provider_id,
+                    model_name=model_name,
+                    capability=capability,
+                    params=model_params,
+                    status=status,
+                    metadata=model_metadata
+                )
+                
+                # Add to in-memory cache
+                self._models[model_id] = model
+                
+                return model
+        except Exception as e:
+            logger.error(f"Error getting model: {e}")
+            logger.error(traceback.format_exc())
+            return None
+
+    async def delete_provider(self, provider_id: int) -> bool:
+        """Delete a provider.
+
+        Args:
+            provider_id: The provider ID
+
+        Returns:
+            Whether the deletion was successful
+        """
+        try:
+            with self.repository._get_session() as session:
+                # First check if provider exists
+                check_query = text("SELECT id FROM llm_providers WHERE id = :id")
+                result = session.execute(check_query, {"id": provider_id}).fetchone()
+                
+                if not result:
+                    return False
+                
+                # First delete associated models
+                delete_models_query = text("DELETE FROM llm_models WHERE provider_id = :provider_id")
+                session.execute(delete_models_query, {"provider_id": provider_id})
+                
+                # Then delete the provider
+                delete_query = text("DELETE FROM llm_providers WHERE id = :id")
+                session.execute(delete_query, {"id": provider_id})
+                
+                session.commit()
+                
+                # Remove from in-memory cache
+                if provider_id in self._providers:
+                    del self._providers[provider_id]
+                
+                # Remove associated models from in-memory cache
+                self._models = {k: v for k, v in self._models.items() if v.provider_id != provider_id}
+                
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting provider: {e}")
+            logger.error(traceback.format_exc())
+            return False
+
+    async def delete_model(self, model_id: int) -> bool:
+        """Delete a model.
+
+        Args:
+            model_id: The model ID
+
+        Returns:
+            Whether the deletion was successful
+        """
+        try:
+            with self.repository._get_session() as session:
+                # First check if model exists
+                check_query = text("SELECT id FROM llm_models WHERE id = :id")
+                result = session.execute(check_query, {"id": model_id}).fetchone()
+                
+                if not result:
+                    return False
+                
+                # Delete the model
+                delete_query = text("DELETE FROM llm_models WHERE id = :id")
+                session.execute(delete_query, {"id": model_id})
+                
+                session.commit()
+                
+                # Remove from in-memory cache
+                if model_id in self._models:
+                    del self._models[model_id]
+                
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting model: {e}")
+            logger.error(traceback.format_exc())
+            return False 

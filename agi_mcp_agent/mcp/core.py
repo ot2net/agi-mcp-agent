@@ -396,13 +396,13 @@ class MasterControlProgram:
         """
         logger.info(f"Unregistering agent with ID: {agent_id}")
         try:
-            # 尝试获取 agent 以确认它存在
+            # Try to get the agent to confirm it exists
             agent = self.repository.get_agent(agent_id)
             if not agent:
                 logger.warning(f"Cannot unregister agent {agent_id}: not found")
                 return False
                 
-            # 从数据库中删除 agent
+            # Delete the agent from the database
             success = self.repository.delete_agent(agent_id)
             if success:
                 logger.info(f"Agent {agent_id} unregistered successfully")

@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from agi_mcp_agent.agent.llm_agent import LLMAgent
 from agi_mcp_agent.mcp.core import MasterControlProgram, Task
+from agi_mcp_agent.mcp.llm_models import LLMProvider, LLMModel
 from agi_mcp_agent.environment import (
     APIEnvironment,
     FileSystemEnvironment,
@@ -220,6 +221,47 @@ class EnvironmentActionResponse(BaseModel):
     
     success: bool
     result: Dict
+
+
+# LLM model schema routes
+class LLMProviderCreate(BaseModel):
+    """Model for creating an LLM provider."""
+    name: str  # e.g. 'openai', 'anthropic'
+    type: str  # e.g. 'openai', 'anthropic', 'rest'
+    api_key: Optional[str] = None
+    models: List[str] = []
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class LLMProviderResponse(BaseModel):
+    """Model for LLM provider responses."""
+    id: int
+    name: str
+    type: str
+    status: str
+    models_count: int
+    created_at: Optional[str] = None
+
+
+class LLMModelCreate(BaseModel):
+    """Model for creating an LLM model."""
+    provider_id: int
+    model_name: str
+    capability: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class LLMModelResponse(BaseModel):
+    """Model for LLM model responses."""
+    id: int
+    provider_id: int
+    provider_name: str
+    model_name: str
+    capability: str
+    status: str
+    params: Dict[str, Any]
+    created_at: Optional[str] = None
 
 
 # Routes
@@ -829,6 +871,339 @@ def start_server():
         port=port,
         reload=True
     )
+
+
+# LLM model routes
+@app.post("/llm/providers", response_model=LLMProviderResponse)
+async def create_llm_provider(provider: LLMProviderCreate):
+    """Create a new LLM provider.
+
+    Args:
+        provider: The LLM provider to create
+
+    Returns:
+        The created LLM provider
+    """
+    try:
+        new_provider = LLMProvider(
+            name=provider.name,
+            type=provider.type,
+            api_key=provider.api_key,
+            models=provider.models,
+            metadata=provider.metadata
+        )
+        
+        provider_id = await mcp.register_llm_provider(new_provider)
+        
+        if not provider_id:
+            raise HTTPException(status_code=500, detail="Failed to create LLM provider")
+            
+        return {
+            "id": provider_id,
+            "name": new_provider.name,
+            "type": new_provider.type,
+            "status": "enabled",
+            "models_count": len(new_provider.models) if new_provider.models else 0,
+            "created_at": datetime.now().isoformat()
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating LLM provider: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error creating LLM provider: {str(e)}")
+
+
+@app.get("/llm/providers", response_model=List[LLMProviderResponse])
+async def list_llm_providers():
+    """Get all LLM providers.
+
+    Returns:
+        List of all LLM providers
+    """
+    try:
+        providers = await mcp.llm_service.get_all_providers()
+        
+        if not providers:
+            return []
+            
+        return [
+            {
+                "id": p.id,
+                "name": p.name,
+                "type": p.type,
+                "status": p.status,
+                "models_count": len(await mcp.llm_service.get_models_by_provider(p.id)),
+                "created_at": datetime.now().isoformat()  # Assuming creation time
+            }
+            for p in providers
+        ]
+    except Exception as e:
+        logger.error(f"Error listing LLM providers: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error listing LLM providers: {str(e)}")
+
+
+@app.get("/llm/providers/{provider_id}", response_model=LLMProviderResponse)
+async def get_llm_provider(provider_id: int):
+    """Get a specific LLM provider.
+
+    Args:
+        provider_id: The provider ID
+
+    Returns:
+        The LLM provider
+    """
+    try:
+        provider = await mcp.llm_service.get_provider(provider_id)
+        
+        if not provider:
+            raise HTTPException(status_code=404, detail="LLM provider not found")
+            
+        return {
+            "id": provider.id,
+            "name": provider.name,
+            "type": provider.type,
+            "status": provider.status,
+            "models_count": len(await mcp.llm_service.get_models_by_provider(provider.id)),
+            "created_at": datetime.now().isoformat()  # Assuming creation time
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting LLM provider: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error getting LLM provider: {str(e)}")
+
+
+@app.delete("/llm/providers/{provider_id}")
+async def delete_llm_provider(provider_id: int):
+    """Delete an LLM provider.
+
+    Args:
+        provider_id: The provider ID
+
+    Returns:
+        Success message
+    """
+    try:
+        success = await mcp.llm_service.delete_provider(provider_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="LLM provider not found or could not be deleted")
+            
+        return {"message": f"LLM provider {provider_id} deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting LLM provider: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error deleting LLM provider: {str(e)}")
+
+
+# LLM models routes
+@app.post("/llm/models", response_model=LLMModelResponse)
+async def create_llm_model(model: LLMModelCreate):
+    """Create a new LLM model.
+
+    Args:
+        model: The LLM model to create
+
+    Returns:
+        The created LLM model
+    """
+    try:
+        new_model = LLMModel(
+            provider_id=model.provider_id,
+            model_name=model.model_name,
+            capability=model.capability,
+            params=model.params,
+            metadata=model.metadata
+        )
+        
+        model_id = await mcp.register_llm_model(new_model)
+        
+        if not model_id:
+            raise HTTPException(status_code=500, detail="Failed to create LLM model")
+            
+        # Get provider information
+        provider = await mcp.llm_service.get_provider(model.provider_id)
+        
+        if not provider:
+            provider_name = "Unknown"
+        else:
+            provider_name = provider.name
+            
+        return {
+            "id": model_id,
+            "provider_id": new_model.provider_id,
+            "provider_name": provider_name,
+            "model_name": new_model.model_name,
+            "capability": new_model.capability,
+            "status": new_model.status,
+            "params": new_model.params,
+            "created_at": datetime.now().isoformat()
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating LLM model: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error creating LLM model: {str(e)}")
+
+
+@app.get("/llm/models", response_model=List[LLMModelResponse])
+async def list_llm_models():
+    """Get all LLM models.
+
+    Returns:
+        List of all LLM models
+    """
+    try:
+        # Get all models from MCP
+        models = await mcp.llm_service.get_all_models()
+        
+        if not models:
+            return []
+            
+        result = []
+        for m in models:
+            # Get provider information
+            provider = await mcp.llm_service.get_provider(m.provider_id)
+            
+            if not provider:
+                provider_name = "Unknown"
+            else:
+                provider_name = provider.name
+                
+            result.append({
+                "id": m.id,
+                "provider_id": m.provider_id,
+                "provider_name": provider_name,
+                "model_name": m.model_name,
+                "capability": m.capability,
+                "status": m.status,
+                "params": m.params,
+                "created_at": datetime.now().isoformat()  # Assuming creation time
+            })
+            
+        return result
+    except Exception as e:
+        logger.error(f"Error listing LLM models: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error listing LLM models: {str(e)}")
+
+
+@app.get("/llm/models/{model_id}", response_model=LLMModelResponse)
+async def get_llm_model(model_id: int):
+    """Get a specific LLM model.
+
+    Args:
+        model_id: The model ID
+
+    Returns:
+        The LLM model
+    """
+    try:
+        model = await mcp.llm_service.get_model(model_id)
+        
+        if not model:
+            raise HTTPException(status_code=404, detail="LLM model not found")
+            
+        # Get provider information
+        provider = await mcp.llm_service.get_provider(model.provider_id)
+        
+        if not provider:
+            provider_name = "Unknown"
+        else:
+            provider_name = provider.name
+            
+        return {
+            "id": model.id,
+            "provider_id": model.provider_id,
+            "provider_name": provider_name,
+            "model_name": model.model_name,
+            "capability": model.capability,
+            "status": model.status,
+            "params": model.params,
+            "created_at": datetime.now().isoformat()  # Assuming creation time
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting LLM model: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error getting LLM model: {str(e)}")
+
+
+@app.delete("/llm/models/{model_id}")
+async def delete_llm_model(model_id: int):
+    """Delete an LLM model.
+
+    Args:
+        model_id: The model ID
+
+    Returns:
+        Success message
+    """
+    try:
+        success = await mcp.llm_service.delete_model(model_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="LLM model not found or could not be deleted")
+            
+        return {"message": f"LLM model {model_id} deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting LLM model: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error deleting LLM model: {str(e)}")
+
+
+@app.get("/llm/providers/{provider_id}/models", response_model=List[LLMModelResponse])
+async def get_provider_models(provider_id: int):
+    """Get all models for a specific provider.
+
+    Args:
+        provider_id: The provider ID
+
+    Returns:
+        List of LLM models for the provider
+    """
+    try:
+        # Check if provider exists
+        provider = await mcp.llm_service.get_provider(provider_id)
+        
+        if not provider:
+            raise HTTPException(status_code=404, detail="LLM provider not found")
+            
+        # Get models for this provider
+        models = await mcp.llm_service.get_models_by_provider(provider_id)
+        
+        if not models:
+            return []
+            
+        result = []
+        for m in models:
+            result.append({
+                "id": m.id,
+                "provider_id": m.provider_id,
+                "provider_name": provider.name,
+                "model_name": m.model_name,
+                "capability": m.capability,
+                "status": m.status,
+                "params": m.params,
+                "created_at": datetime.now().isoformat()  # Assuming creation time
+            })
+            
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting provider models: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error getting provider models: {str(e)}")
 
 
 if __name__ == "__main__":
