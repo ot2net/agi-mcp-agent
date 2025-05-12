@@ -9,18 +9,19 @@ import { TextArea } from '@/components/base/TextArea';
 import { Button } from '@/components/base/Button';
 import { FormField } from '@/components/base/FormField';
 import { HiOutlinePlus } from 'react-icons/hi';
+import { FancySelect } from '@/components/base/FancySelect';
 
 interface EnvironmentFormProps {
   onSubmit: (env: Omit<Environment, 'id' | 'status' | 'created_at' | 'updated_at'>) => void;
 }
 
 const ENV_TYPE_OPTIONS = [
-  { value: 'api', label: 'API' },
-  { value: 'filesystem', label: 'Filesystem' },
-  { value: 'memory', label: 'Memory' },
-  { value: 'web', label: 'Web' },
-  { value: 'database', label: 'Database' },
-  { value: 'mcp', label: 'MCP' },
+  { value: 'api', label: 'API', icon: <span>🌐</span> },
+  { value: 'filesystem', label: 'Filesystem', icon: <span>📁</span> },
+  { value: 'memory', label: 'Memory', icon: <span>💾</span> },
+  { value: 'web', label: 'Web', icon: <span>🌍</span> },
+  { value: 'database', label: 'Database', icon: <span>🗄️</span> },
+  { value: 'mcp', label: 'MCP', icon: <span>🔧</span> },
 ];
 
 export function EnvironmentForm({ onSubmit }: EnvironmentFormProps) {
@@ -81,7 +82,7 @@ export function EnvironmentForm({ onSubmit }: EnvironmentFormProps) {
         label="Type"
         required
       >
-        <Select
+        <FancySelect
           id="type"
           name="type"
           value={formData.type}

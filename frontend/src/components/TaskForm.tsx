@@ -8,18 +8,19 @@ import { Select } from '@/components/base/Select';
 import { TextArea } from '@/components/base/TextArea';
 import { Button } from '@/components/base/Button';
 import { FormField } from '@/components/base/FormField';
+import { FancySelect } from '@/components/base/FancySelect';
 
 interface TaskFormProps {
   onSubmit: (task: Omit<Task, 'id' | 'status' | 'created_at' | 'completed_at' | 'result' | 'error'>) => void;
 }
 
 const modelOptions = [
-  { value: 'openai:gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-  { value: 'openai:gpt-4', label: 'GPT-4' },
-  { value: 'anthropic:claude-3-opus', label: 'Claude 3 Opus' },
-  { value: 'anthropic:claude-3-sonnet', label: 'Claude 3 Sonnet' },
-  { value: 'google:gemini-pro', label: 'Gemini Pro' },
-  { value: 'mistral:mistral-large', label: 'Mistral Large' },
+  { value: 'openai:gpt-3.5-turbo', label: 'GPT-3.5 Turbo', icon: <span>🤖</span> },
+  { value: 'openai:gpt-4', label: 'GPT-4', icon: <span>🤖</span> },
+  { value: 'anthropic:claude-3-opus', label: 'Claude 3 Opus', icon: <span>🤖</span> },
+  { value: 'anthropic:claude-3-sonnet', label: 'Claude 3 Sonnet', icon: <span>🤖</span> },
+  { value: 'google:gemini-pro', label: 'Gemini Pro', icon: <span>🤖</span> },
+  { value: 'mistral:mistral-large', label: 'Mistral Large', icon: <span>🤖</span> },
 ];
 
 export function TaskForm({ onSubmit }: TaskFormProps) {
@@ -88,7 +89,7 @@ export function TaskForm({ onSubmit }: TaskFormProps) {
         label="Model"
         required
       >
-        <Select
+        <FancySelect
           id="model_identifier"
           name="model_identifier"
           value={formData.model_identifier}
