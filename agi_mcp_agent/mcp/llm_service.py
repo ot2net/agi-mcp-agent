@@ -10,15 +10,24 @@ from typing import Dict, List, Optional, Any, Union
 import openai
 import anthropic
 from sqlalchemy import text
+from datetime import datetime
+from pydantic import BaseModel
 
 from agi_mcp_agent.mcp.llm_models import (
     LLMProvider, LLMModel, LLMRequest, LLMResponse,
     LLMEmbeddingRequest, LLMEmbeddingResponse
 )
-from agi_mcp_agent.mcp.repository import MCPRepository
+from agi_mcp_agent.mcp.repository import MCPRepository, sanitize_for_json
 
 logger = logging.getLogger(__name__)
 
+# 添加JSON编码器用于处理datetime对象
+class DateTimeEncoder(json.JSONEncoder):
+    """JSON编码器，用于处理datetime对象。"""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
 
 class LLMService:
     """Service for handling LLM operations."""
@@ -240,18 +249,21 @@ class LLMService:
         """Create a new LLM provider.
 
         Args:
-            provider: The provider configuration
+            provider: The provider configuration to create
 
         Returns:
-            The provider ID if successful
+            The provider's ID, if successful
         """
         try:
             with self.repository._get_session() as session:
                 # Convert models to PostgreSQL array format if models is not None
                 models_array = self._convert_list_to_pg_array(provider.models) if provider.models else None
                 
-                # Convert metadata to JSON if needed
-                metadata_json = json.dumps(provider.metadata) if provider.metadata else None
+                # Sanitize metadata to handle datetime objects
+                sanitized_metadata = sanitize_for_json(provider.metadata) if provider.metadata else None
+                
+                # Convert metadata to JSON
+                metadata_json = json.dumps(sanitized_metadata) if sanitized_metadata else None
                 
                 # Use text format for direct parameters
                 query = text("""
@@ -287,16 +299,20 @@ class LLMService:
         """Create a new LLM model.
 
         Args:
-            model: The model configuration
+            model: The model configuration to create
 
         Returns:
-            The model ID if successful
+            The model's ID, if successful
         """
         try:
             with self.repository._get_session() as session:
-                # Serialize params and metadata to JSON
-                params_json = json.dumps(model.params) if model.params else None
-                metadata_json = json.dumps(model.metadata) if model.metadata else None
+                # Sanitize data to handle datetime objects
+                sanitized_params = sanitize_for_json(model.params) if model.params else None
+                sanitized_metadata = sanitize_for_json(model.metadata) if model.metadata else None
+                
+                # Convert params and metadata to JSON
+                params_json = json.dumps(sanitized_params) if sanitized_params else None
+                metadata_json = json.dumps(sanitized_metadata) if sanitized_metadata else None
                 
                 query = text("""
                     INSERT INTO llm_models (provider_id, model_name, capability, params, status, metadata)

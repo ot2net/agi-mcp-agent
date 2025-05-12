@@ -13,6 +13,34 @@ from agi_mcp_agent.mcp.models import Agent, Task, TaskDependency, AgentMetric, S
 
 logger = logging.getLogger(__name__)
 
+# 添加一个JSON编码器来处理datetime对象
+class DateTimeEncoder(json.JSONEncoder):
+    """JSON编码器，用于处理datetime对象。"""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+def sanitize_for_json(obj):
+    """Recursively convert any datetime objects to ISO format strings.
+    
+    Args:
+        obj: The object to sanitize (dict, list, datetime, or other)
+        
+    Returns:
+        The sanitized object, with all datetime objects converted to strings
+    """
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(sanitize_for_json(item) for item in obj)
+    else:
+        return obj
+
 
 class MCPRepository:
     """Repository for MCP database operations."""
@@ -42,9 +70,13 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
+                # Sanitize data to handle datetime objects
+                sanitized_capabilities = sanitize_for_json(agent.capabilities) if agent.capabilities else None
+                sanitized_metadata = sanitize_for_json(agent.metadata) if agent.metadata else None
+                
                 # Convert Python lists and dicts to JSON
-                capabilities_json = json.dumps(agent.capabilities) if agent.capabilities else None
-                metadata_json = json.dumps(agent.metadata) if agent.metadata else None
+                capabilities_json = json.dumps(sanitized_capabilities) if sanitized_capabilities else None
+                metadata_json = json.dumps(sanitized_metadata) if sanitized_metadata else None
                 
                 query = text("""
                     INSERT INTO mcp_agents (name, type, capabilities, status, metadata)
@@ -131,9 +163,13 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
+                # Sanitize data to handle datetime objects
+                sanitized_input_data = sanitize_for_json(task.input_data) if task.input_data else None
+                sanitized_output_data = sanitize_for_json(task.output_data) if task.output_data else None
+                
                 # Convert Python dicts to JSON
-                input_data_json = json.dumps(task.input_data) if task.input_data else None
-                output_data_json = json.dumps(task.output_data) if task.output_data else None
+                input_data_json = json.dumps(sanitized_input_data) if sanitized_input_data else None
+                output_data_json = json.dumps(sanitized_output_data) if sanitized_output_data else None
                 
                 query = text("""
                     INSERT INTO mcp_tasks (
@@ -186,8 +222,11 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
+                # Sanitize output_data to handle datetime objects
+                sanitized_output_data = sanitize_for_json(output_data) if output_data else None
+                
                 # Convert output_data dict to JSON string
-                output_data_json = json.dumps(output_data) if output_data else None
+                output_data_json = json.dumps(sanitized_output_data) if sanitized_output_data else None
                 
                 query = text("""
                     UPDATE mcp_tasks
@@ -269,8 +308,11 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
-                # Convert metadata dict to JSON string
-                metadata_json = json.dumps(log.metadata) if log.metadata else None
+                # First sanitize the metadata to handle datetime objects
+                sanitized_metadata = sanitize_for_json(log.metadata) if log.metadata else None
+                
+                # Convert metadata dict to JSON string using custom encoder
+                metadata_json = json.dumps(sanitized_metadata) if sanitized_metadata else None
                 
                 query = text("""
                     INSERT INTO mcp_system_logs (level, component, message, metadata)
