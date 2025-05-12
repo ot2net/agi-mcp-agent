@@ -39,6 +39,20 @@ export async function createProvider(provider: LLMProviderCreate): Promise<LLMPr
   return response.json();
 }
 
+export async function updateProviderApiKey(id: number, apiKey: string, metadata?: Record<string, any>): Promise<LLMProvider> {
+  const response = await fetch(`${API_BASE_URL}/providers/${id}/apikey`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ api_key: apiKey, metadata }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update provider API key: ${response.statusText}`);
+  }
+  return response.json();
+}
+
 export async function deleteProvider(id: number): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/providers/${id}`, {
     method: 'DELETE',

@@ -4,6 +4,7 @@ export interface LLMProvider {
   type: string;
   status: string;
   models_count: number;
+  metadata?: Record<string, any>;
   created_at?: string;
 }
 
@@ -15,6 +16,7 @@ export interface LLMModel {
   capability: string;
   status: string;
   params: Record<string, any>;
+  metadata?: Record<string, any>;
   created_at?: string;
 }
 
