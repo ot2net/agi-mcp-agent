@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/base/Button';
+import { Input } from '@/components/base/Input';
+import { Select } from '@/components/base/Select';
+import { FormField } from '@/components/base/FormField';
 import { LLMProviderCreate } from '@/types/llm';
 import { createProvider } from '@/api/llm';
+import { ModelIcon } from '@/components/llm/ModelIcon';
 
 export function CreateProviderForm() {
   const router = useRouter();
@@ -39,6 +43,13 @@ export function CreateProviderForm() {
     }));
   };
 
+  const handleProviderChange = (value: string) => {
+    setFormData(prevData => ({
+      ...prevData,
+      type: value,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -66,7 +77,37 @@ export function CreateProviderForm() {
     { value: 'deepseek', label: 'DeepSeek', keyFormat: 'DEEPSEEK_API_KEY', docLink: 'https://platform.deepseek.com/' },
   ];
 
+  const selectOptions = providerOptions.map(option => ({
+    value: option.value,
+    label: option.label
+  }));
+
   const selectedProvider = providerOptions.find(p => p.value === formData.type) || providerOptions[0];
+
+  // Custom Provider Select with Icons
+  const ProviderSelect = () => {
+    return (
+      <div className="relative">
+        <select
+          id="type"
+          name="type"
+          required
+          value={formData.type}
+          onChange={handleChange}
+          className="block w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-12 pr-4 py-3 text-lg text-left shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        >
+          {providerOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+          <ModelIcon type={formData.type} size="md" withBackground={true} />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -76,73 +117,60 @@ export function CreateProviderForm() {
         </div>
       )}
       
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-medium mb-4">Provider Information</h3>
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 className="text-2xl font-medium mb-6">Provider Information</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Provider Type *
+            <label htmlFor="type" className="block text-base font-medium text-gray-900 dark:text-white mb-2">
+              Provider Type <span className="text-red-500">*</span>
             </label>
-            <select
-              id="type"
-              name="type"
-              required
-              value={formData.type}
-              onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-            >
-              {providerOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <ProviderSelect />
           </div>
 
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Display Name *
+            <label htmlFor="name" className="block text-base font-medium text-gray-900 dark:text-white mb-2">
+              Display Name <span className="text-red-500">*</span>
             </label>
-            <input
+            <Input
               id="name"
               name="name"
               type="text"
               required
               value={formData.name}
               onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
               placeholder="My OpenAI Account"
+              className="py-3 text-lg"
             />
           </div>
         </div>
         
         <div className="mt-6">
-          <label htmlFor="api_key" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            API Key *
-          </label>
-          <div className="relative">
-            <input
+          <div>
+            <label htmlFor="api_key" className="block text-base font-medium text-gray-900 dark:text-white mb-2">
+              API Key <span className="text-red-500">*</span>
+            </label>
+            <Input
               id="api_key"
               name="api_key"
               type="password"
               required
               value={formData.api_key}
               onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
               placeholder={selectedProvider.keyFormat}
+              className="py-3 text-lg"
             />
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-            <p>Format: {selectedProvider.keyFormat}</p>
-            <a 
-              href={selectedProvider.docLink} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Get API Key
-            </a>
+            <div className="mt-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <p>Format: {selectedProvider.keyFormat}</p>
+              <a 
+                href={selectedProvider.docLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Get API Key
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -151,13 +179,17 @@ export function CreateProviderForm() {
         <Button
           type="button"
           variant="outline"
+          size="lg"
           onClick={() => router.back()}
+          className="px-6"
         >
           Cancel
         </Button>
         <Button
           type="submit"
+          size="lg"
           disabled={isLoading}
+          className="px-6"
         >
           {isLoading ? 'Creating...' : 'Create Provider'}
         </Button>

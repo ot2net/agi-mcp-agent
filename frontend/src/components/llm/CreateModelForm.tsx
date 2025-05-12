@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/base/Button';
+import { Input } from '@/components/base/Input';
+import { Select } from '@/components/base/Select';
+import { FormField } from '@/components/base/FormField';
 import { LLMModelCreate, LLMProvider } from '@/types/llm';
 import { createModel, getProviders } from '@/api/llm';
+import { ModelIcon } from '@/components/llm/ModelIcon';
 
 export function CreateModelForm() {
   const router = useRouter();
@@ -15,7 +19,7 @@ export function CreateModelForm() {
   const [formData, setFormData] = useState<LLMModelCreate>({
     provider_id: 0,
     model_name: '',
-    capability: 'chat',
+    capability: 'embedding',
     params: {
       temperature: 0.7,
       max_tokens: 1000
@@ -109,17 +113,25 @@ export function CreateModelForm() {
 
   const presetModels = {
     openai: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-vision-preview', 'text-embedding-ada-002'],
-    anthropic: ['claude-2', 'claude-instant-1'],
-    mistral: ['mistral-tiny', 'mistral-small', 'mistral-medium'],
-    cohere: ['command', 'command-light', 'embed-english-v3.0'],
+    anthropic: ['claude-2', 'claude-instant-1', 'claude-3-sonnet', 'claude-3-opus'],
+    mistral: ['mistral-tiny', 'mistral-small', 'mistral-medium', 'mistral-large'],
+    cohere: ['command', 'command-light', 'command-r', 'embed-english-v3.0'],
+    google: ['gemini-pro', 'gemini-pro-vision', 'gemini-ultra', 'text-embedding-gecko'],
+    deepseek: ['deepseek-chat', 'deepseek-coder'],
   };
 
   const getModelSuggestions = () => {
     const provider = providers.find(p => p.id === formData.provider_id);
     if (!provider) return [];
     
-    const providerType = provider.type as keyof typeof presetModels;
+    const providerType = provider.type.toLowerCase() as keyof typeof presetModels;
     return presetModels[providerType] || [];
+  };
+
+  // Get the current selected provider's type
+  const getSelectedProviderType = () => {
+    const provider = providers.find(p => p.id === formData.provider_id);
+    return provider?.type || '';
   };
 
   // Auto-select popular models when provider changes
@@ -127,15 +139,27 @@ export function CreateModelForm() {
     const provider = providers.find(p => p.id === formData.provider_id);
     if (!provider) return;
     
-    const providerType = provider.type as keyof typeof presetModels;
+    const providerType = provider.type.toLowerCase() as keyof typeof presetModels;
     const models = presetModels[providerType] || [];
     
     // For embedding capability, auto-select embedding model when available
-    if (formData.capability === 'embedding' && providerType === 'openai') {
-      setFormData(prev => ({
-        ...prev,
-        model_name: 'text-embedding-ada-002'
-      }));
+    if (formData.capability === 'embedding') {
+      if (providerType === 'openai') {
+        setFormData(prev => ({
+          ...prev,
+          model_name: 'text-embedding-ada-002'
+        }));
+      } else if (providerType === 'cohere') {
+        setFormData(prev => ({
+          ...prev,
+          model_name: 'embed-english-v3.0'
+        }));
+      } else if (providerType === 'google') {
+        setFormData(prev => ({
+          ...prev,
+          model_name: 'text-embedding-gecko'
+        }));
+      }
     } 
     // For chat capability, auto-select first chat model when available
     else if (formData.capability === 'chat' && models.length > 0) {
@@ -147,19 +171,64 @@ export function CreateModelForm() {
   }, [formData.provider_id, formData.capability, providers]);
 
   if (isLoadingProviders) {
-    return <div className="text-center py-4">Loading providers...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-r-transparent" role="status">
+          <span className="sr-only">Loading...</span>
+        </div>
+        <p className="ml-3 text-gray-600">Loading providers...</p>
+      </div>
+    );
   }
 
   if (providers.length === 0) {
     return (
-      <div className="text-center py-4">
-        <p className="mb-4">No providers available. Please create a provider first.</p>
-        <Button onClick={() => router.push('/llm/providers/create')}>
-          Create Provider
+      <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/20 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-semibold mb-2">No Providers Available</h3>
+        <p className="mb-6 text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+          You need to add a provider before you can create a model.
+        </p>
+        <Button 
+          onClick={() => router.push('/llm/providers/create')}
+          className="px-6"
+        >
+          Add Provider
         </Button>
       </div>
     );
   }
+
+  // Custom Provider Select with Icons
+  const ProviderSelect = () => {
+    const selectedProviderType = getSelectedProviderType();
+    
+    return (
+      <div className="relative">
+        <select
+          id="provider_id"
+          name="provider_id"
+          required
+          value={formData.provider_id.toString()}
+          onChange={handleChange}
+          className="block w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-12 pr-4 py-3 text-lg text-left shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        >
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id.toString()}>
+              {provider.name} ({provider.type})
+            </option>
+          ))}
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+          <ModelIcon type={selectedProviderType} size="md" withBackground={true} />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -169,35 +238,22 @@ export function CreateModelForm() {
         </div>
       )}
       
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-medium mb-4">Basic Information</h3>
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 className="text-2xl font-medium mb-6">Basic Information</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <label htmlFor="provider_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Provider *
+            <label htmlFor="provider_id" className="block text-base font-medium text-gray-900 dark:text-white mb-2">
+              Provider <span className="text-red-500">*</span>
             </label>
-            <select
-              id="provider_id"
-              name="provider_id"
-              required
-              value={formData.provider_id}
-              onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
-            >
-              {providers.map(provider => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.name} ({provider.type})
-                </option>
-              ))}
-            </select>
+            <ProviderSelect />
           </div>
 
           <div>
-            <label htmlFor="model_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Model Name *
+            <label htmlFor="model_name" className="block text-base font-medium text-gray-900 dark:text-white mb-2">
+              Model Name <span className="text-red-500">*</span>
             </label>
-            <input
+            <Input
               id="model_name"
               name="model_name"
               type="text"
@@ -205,8 +261,8 @@ export function CreateModelForm() {
               list="model-suggestions"
               value={formData.model_name}
               onChange={handleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
               placeholder="e.g., gpt-3.5-turbo"
+              className="py-3 text-lg"
             />
             <datalist id="model-suggestions">
               {getModelSuggestions().map(model => (
@@ -216,24 +272,44 @@ export function CreateModelForm() {
           </div>
         </div>
         
-        <div className="mt-4">
-          <label htmlFor="capability" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Capability *
+        <div className="mt-6">
+          <label htmlFor="capability" className="block text-base font-medium text-gray-900 dark:text-white mb-2">
+            Capability <span className="text-red-500">*</span>
           </label>
-          <div className="flex flex-wrap gap-3 mt-1">
-            {['chat', 'embedding', 'completion'].map(capability => (
-              <label key={capability} className="flex items-center">
-                <input
-                  type="radio"
-                  name="capability"
-                  value={capability}
-                  checked={formData.capability === capability}
-                  onChange={handleChange}
-                  className="rounded-full text-blue-600 focus:ring-blue-500 h-4 w-4"
-                />
-                <span className="ml-2 text-sm capitalize">{capability}</span>
-              </label>
-            ))}
+          <div className="flex flex-wrap gap-6 mt-2">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="capability"
+                value="chat"
+                checked={formData.capability === 'chat'}
+                onChange={handleChange}
+                className="w-5 h-5 rounded-full text-blue-600 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-base">Chat</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="capability"
+                value="embedding"
+                checked={formData.capability === 'embedding'}
+                onChange={handleChange}
+                className="w-5 h-5 rounded-full text-blue-600 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-base">Embedding</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="capability"
+                value="completion"
+                checked={formData.capability === 'completion'}
+                onChange={handleChange}
+                className="w-5 h-5 rounded-full text-blue-600 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-base">Completion</span>
+            </label>
           </div>
         </div>
       </div>
@@ -242,13 +318,17 @@ export function CreateModelForm() {
         <Button
           type="button"
           variant="outline"
+          size="lg"
           onClick={() => router.back()}
+          className="px-6"
         >
           Cancel
         </Button>
         <Button
           type="submit"
+          size="lg"
           disabled={isLoading}
+          className="px-6"
         >
           {isLoading ? 'Creating...' : 'Create Model'}
         </Button>
