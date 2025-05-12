@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { LLMModel } from '@/types/llm';
-import { Card } from '@/components/base/Card';
 import { Button } from '@/components/base/Button';
-import { HiOutlineTrash, HiOutlineEye, HiOutlineChip } from 'react-icons/hi';
+import { HiOutlineTrash, HiOutlineEye } from 'react-icons/hi';
 import { deleteModel } from '@/api/llm';
 import Link from 'next/link';
+import { ModelIcon } from '@/components/llm/ModelIcon';
 
 interface ModelCardProps {
   model: LLMModel;
@@ -60,27 +60,34 @@ export function ModelCard({ model, onDelete }: ModelCardProps) {
   const capabilityInfo = getCapabilityInfo(model.capability);
 
   return (
-    <Card 
-      title={model.model_name}
-      description={`Provider: ${model.provider_name}`}
-      icon={<HiOutlineChip className="w-6 h-6" />}
-    >
-      <div className="mt-4 grid grid-cols-2 gap-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      {/* Model header with icon */}
+      <div className="p-5 flex items-center space-x-3">
+        <ModelIcon type={model.provider_name || 'model'} size="lg" withBackground={true} />
         <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Capability</p>
-          <span className={`inline-flex items-center mt-1 px-2 py-1 rounded-md text-xs font-medium ${capabilityInfo.color}`}>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{model.model_name}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Provider: {model.provider_name}</p>
+        </div>
+      </div>
+      
+      {/* Model details */}
+      <div className="px-5 pb-4 grid grid-cols-2 gap-6">
+        <div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Capability</p>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${capabilityInfo.color}`}>
             {capabilityInfo.text}
           </span>
         </div>
         <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-          <p className={`font-medium ${model.status === 'enabled' ? 'text-green-500' : 'text-red-500'}`}>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Status</p>
+          <p className={`text-sm font-medium ${model.status === 'enabled' ? 'text-green-500' : 'text-red-500'}`}>
             {model.status === 'enabled' ? 'Enabled' : 'Disabled'}
           </p>
         </div>
       </div>
       
-      <div className="mt-6 flex space-x-2 justify-end">
+      {/* Button actions */}
+      <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end space-x-3">
         <Link href={`/llm/models/${model.id}`}>
           <Button
             variant="outline"
@@ -101,6 +108,6 @@ export function ModelCard({ model, onDelete }: ModelCardProps) {
           {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
       </div>
-    </Card>
+    </div>
   );
 } 

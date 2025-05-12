@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { HiOutlinePlus, HiOutlineChip, HiOutlineCog, HiArrowRight } from 'react-icons/hi';
 import { Button } from '@/components/base/Button';
-import { Card } from '@/components/base/Card';
 import { getProviders, getModels } from '@/api/llm';
 import { LLMProvider, LLMModel } from '@/types/llm';
 import { ProviderCard } from '@/components/llm/ProviderCard';
 import { ModelCard } from '@/components/llm/ModelCard';
+import { ModelIcon } from '@/components/llm/ModelIcon';
 
 export default function LLMPage() {
   const [providers, setProviders] = useState<LLMProvider[]>([]);
@@ -50,13 +50,16 @@ export default function LLMPage() {
     fetchData(); // Refresh data after deletion
   };
 
+  // Available model icons to show in the setup guide
+  const availableProviders = ['openai', 'anthropic', 'google', 'deepseek', 'qwen', 'mistral'];
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex flex-col space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">LLM Management</h1>
           {!showSetupGuide && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <Link href="/llm/providers/create">
                 <Button 
                   size="sm"
@@ -81,11 +84,20 @@ export default function LLMPage() {
         </div>
 
         {showSetupGuide ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
             <h2 className="text-xl font-semibold mb-4">Set up your LLM Integration</h2>
-            <p className="mb-6 text-gray-600 dark:text-gray-400">
+            <p className="mb-8 text-gray-600 dark:text-gray-400 max-w-3xl">
               Configure your LLM providers and models to use with the AI agents. Just add your API key and you're ready to go.
             </p>
+            
+            <div className="flex flex-wrap justify-center gap-8 mb-10">
+              {availableProviders.map(provider => (
+                <div key={provider} className="text-center">
+                  <ModelIcon key={provider} type={provider} size="xl" withBackground={true} />
+                  <p className="mt-2 text-sm text-gray-600 capitalize">{provider}</p>
+                </div>
+              ))}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -95,7 +107,7 @@ export default function LLMPage() {
                   </div>
                   <h3 className="text-lg font-medium">Add a Provider</h3>
                 </div>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
                   Start by adding an LLM provider like OpenAI, Anthropic, or Mistral AI with your API key.
                 </p>
                 <Link href="/llm/providers/create">
@@ -112,7 +124,7 @@ export default function LLMPage() {
                   </div>
                   <h3 className="text-lg font-medium">Add Models</h3>
                 </div>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
                   Once you've added a provider, you can configure the specific models you want to use.
                 </p>
                 <Button
@@ -153,10 +165,10 @@ export default function LLMPage() {
 
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-r-transparent" role="status">
+                  <span className="sr-only">Loading...</span>
                 </div>
-                <p className="mt-2">Loading...</p>
+                <p className="mt-4 text-gray-600">Loading...</p>
               </div>
             ) : error ? (
               <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 p-4 rounded-md">
@@ -176,16 +188,16 @@ export default function LLMPage() {
                           />
                         ))
                       ) : (
-                        <div className="col-span-3 text-center py-12 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                          <HiOutlineCog className="mx-auto h-12 w-12 text-gray-400" />
-                          <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No providers</h3>
-                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="col-span-3 text-center py-16 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                          <HiOutlineCog className="mx-auto h-16 w-16 text-gray-400" />
+                          <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No providers</h3>
+                          <p className="mt-2 text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                             Get started by adding a new LLM provider.
                           </p>
                           <div className="mt-6">
                             <Link href="/llm/providers/create">
                               <Button
-                                size="sm"
+                                size="default"
                                 className="flex items-center mx-auto"
                               >
                                 <HiOutlinePlus className="mr-1" />
@@ -211,10 +223,10 @@ export default function LLMPage() {
                           />
                         ))
                       ) : (
-                        <div className="col-span-3 text-center py-12 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                          <HiOutlineChip className="mx-auto h-12 w-12 text-gray-400" />
-                          <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No models</h3>
-                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="col-span-3 text-center py-16 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                          <HiOutlineChip className="mx-auto h-16 w-16 text-gray-400" />
+                          <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No models</h3>
+                          <p className="mt-2 text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                             {providers.length > 0 
                               ? "Add your first model to get started."
                               : "You need to add a provider before adding models."}
@@ -223,7 +235,7 @@ export default function LLMPage() {
                             {providers.length > 0 ? (
                               <Link href="/llm/models/create">
                                 <Button
-                                  size="sm"
+                                  size="default"
                                   className="flex items-center mx-auto"
                                 >
                                   <HiOutlinePlus className="mr-1" />
@@ -233,7 +245,7 @@ export default function LLMPage() {
                             ) : (
                               <Link href="/llm/providers/create">
                                 <Button
-                                  size="sm"
+                                  size="default"
                                   className="flex items-center mx-auto"
                                 >
                                   <HiOutlinePlus className="mr-1" />
