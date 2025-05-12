@@ -4,10 +4,14 @@ import asyncio
 import logging
 import os
 import uuid
+import sys
+import traceback
+import threading
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
+from datetime import datetime
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -23,21 +27,27 @@ from agi_mcp_agent.environment import (
 )
 
 # Configure logging
+log_level = os.getenv("LOGLEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Setting log level to {log_level}")
 
 # Load environment variables
+logger.info("Loading environment variables from .env file")
 load_dotenv()
 
 # Get database URL from environment
 database_url = os.getenv("DATABASE_URL")
 if not database_url:
+    logger.error("DATABASE_URL environment variable is not set")
     raise ValueError("DATABASE_URL environment variable is not set")
+logger.info(f"Using database URL: {database_url.split('@')[0]}@*****")
 
 # Create the FastAPI app
+logger.info("Creating FastAPI application")
 app = FastAPI(
     title="AGI-MCP-Agent API",
     description="API for interacting with the AGI-MCP-Agent framework",
@@ -45,6 +55,7 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+logger.info("Adding CORS middleware")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],  # 允许的前端域名
@@ -53,41 +64,71 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有HTTP头
 )
 
+# Global variables for MCP
+mcp = None
+mcp_task = None
+environments = {}
+is_mcp_running = False
+
 # Create the MCP with database configuration
 try:
+    logger.info("Initializing Master Control Program")
     mcp = MasterControlProgram(database_url)
     logger.info("MCP initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize MCP: {str(e)}")
+    logger.error(traceback.format_exc())
     raise
 
-# Create a task to manage the MCP
-mcp_task = None
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log incoming requests for debugging."""
+    logger.debug(f"Incoming request: {request.method} {request.url.path}")
+    try:
+        response = await call_next(request)
+        logger.debug(f"Response status: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Request error: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise
 
-# Dictionary to store environments
-environments = {}
-
-# Flag to track if MCP is running
-is_mcp_running = False
+def run_async_in_thread(async_func):
+    """Run an async function in a separate thread."""
+    loop = asyncio.new_event_loop()
+    
+    def run_in_thread():
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(async_func)
+        
+    thread = threading.Thread(target=run_in_thread)
+    thread.daemon = True
+    thread.start()
+    return thread
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize the system on startup."""
     global is_mcp_running
+    logger.info("Server startup event triggered")
     try:
-        # Start the MCP
-        await mcp.start()
+        logger.info("Starting Master Control Program in background thread")
+        # Start MCP in a background thread to avoid blocking the server startup
+        mcp_thread = run_async_in_thread(mcp.start())
+        app.state.mcp_thread = mcp_thread
+        
         is_mcp_running = True
-        logger.info("MCP started successfully on server startup")
+        logger.info("MCP background thread started successfully")
     except Exception as e:
         logger.error(f"Failed to start MCP on startup: {str(e)}")
+        logger.error(traceback.format_exc())
         is_mcp_running = False
-        raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean up on shutdown."""
     global is_mcp_running
+    logger.info("Server shutdown event triggered")
     try:
         # Stop the MCP
         await mcp.stop()
@@ -95,6 +136,7 @@ async def shutdown_event():
         logger.info("MCP stopped successfully on server shutdown")
     except Exception as e:
         logger.error(f"Error stopping MCP on shutdown: {str(e)}")
+        logger.error(traceback.format_exc())
         raise
 
 # Models for API requests and responses
@@ -183,12 +225,22 @@ class EnvironmentActionResponse(BaseModel):
 @app.get("/")
 async def read_root():
     """Get information about the API."""
+    logger.debug("Handling request to root endpoint")
     return {
         "name": "AGI-MCP-Agent API",
         "version": "0.1.0",
         "description": "API for interacting with the AGI-MCP-Agent framework",
     }
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    logger.debug("Handling health check request")
+    return {
+        "status": "ok",
+        "mcp_running": is_mcp_running,
+        "timestamp": str(datetime.now())
+    }
 
 @app.post("/agents/", response_model=AgentResponse)
 async def create_agent(agent: AgentCreate):
@@ -295,25 +347,32 @@ async def create_task(task: TaskCreate):
             name=task.name,
             description=task.description,
             priority=task.priority,
-            metadata=task.metadata,
+            input_data=task.metadata,
             dependencies=task.dependencies,
         )
         
-        mcp.add_task(new_task)
+        created_task = await mcp.add_task(new_task)
+        
+        if not created_task:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create task"
+            )
         
         return {
-            "id": new_task.id,
-            "name": new_task.name,
-            "description": new_task.description,
-            "status": new_task.status,
-            "agent_id": new_task.agent_id,
-            "priority": new_task.priority,
-            "created_at": new_task.created_at.isoformat(),
-            "started_at": new_task.started_at.isoformat() if new_task.started_at else None,
-            "completed_at": new_task.completed_at.isoformat() if new_task.completed_at else None,
+            "id": str(created_task.id),
+            "name": created_task.name,
+            "description": created_task.description,
+            "status": created_task.status,
+            "agent_id": created_task.agent_id,
+            "priority": created_task.priority,
+            "created_at": created_task.created_at.isoformat(),
+            "started_at": created_task.started_at.isoformat() if created_task.started_at else None,
+            "completed_at": created_task.completed_at.isoformat() if created_task.completed_at else None,
         }
     except Exception as e:
         logger.error(f"Error creating task: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Error creating task: {str(e)}"
@@ -334,9 +393,11 @@ async def list_tasks():
         )
 
     try:
+        tasks = await mcp.get_all_tasks()
+        
         return [
             {
-                "id": task.id,
+                "id": str(task.id),
                 "name": task.name,
                 "description": task.description,
                 "status": task.status,
@@ -346,10 +407,11 @@ async def list_tasks():
                 "started_at": task.started_at.isoformat() if task.started_at else None,
                 "completed_at": task.completed_at.isoformat() if task.completed_at else None,
             }
-            for task in mcp.tasks.values()
+            for task in tasks
         ]
     except Exception as e:
         logger.error(f"Error listing tasks: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Error listing tasks: {str(e)}"
@@ -373,12 +435,13 @@ async def get_task(task_id: str):
         )
 
     try:
-        task = mcp.get_task(task_id)
+        task = await mcp.get_task(task_id)
+        
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
         
         return {
-            "id": task.id,
+            "id": str(task.id),
             "name": task.name,
             "description": task.description,
             "status": task.status,
@@ -392,6 +455,7 @@ async def get_task(task_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting task: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Error getting task: {str(e)}"

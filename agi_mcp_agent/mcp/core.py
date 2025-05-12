@@ -2,6 +2,9 @@
 
 import asyncio
 import logging
+import sys
+import traceback
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
@@ -25,10 +28,24 @@ class MasterControlProgram:
         Args:
             database_url: The database connection URL
         """
-        self.repository = MCPRepository(database_url)
-        self.llm_service = LLMService(self.repository)
-        self.running = False
-        self._log_system_event("info", "MCP initialized")
+        logger.info("Initializing MasterControlProgram")
+        try:
+            logger.debug(f"Creating MCPRepository with database URL: {database_url.split('@')[0]}@*****")
+            self.repository = MCPRepository(database_url)
+            logger.info("Repository initialized successfully")
+            
+            logger.debug("Initializing LLMService")
+            start_time = time.time()
+            self.llm_service = LLMService(self.repository)
+            logger.info(f"LLMService initialized in {time.time() - start_time:.2f} seconds")
+            
+            self.running = False
+            self._log_system_event("info", "MCP initialized")
+            logger.info("MasterControlProgram initialization complete")
+        except Exception as e:
+            logger.error(f"Error during MCP initialization: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise
 
     def _log_system_event(self, level: str, message: str, metadata: Optional[Dict] = None):
         """Log a system event.
@@ -38,13 +55,21 @@ class MasterControlProgram:
             message: The log message
             metadata: Optional metadata to include
         """
-        log = SystemLog(
-            level=level,
-            component="mcp",
-            message=message,
-            metadata=metadata
-        )
-        self.repository.add_system_log(log)
+        try:
+            log = SystemLog(
+                level=level,
+                component="mcp",
+                message=message,
+                metadata=metadata or {}
+            )
+            self.repository.add_system_log(log)
+            
+            # Also log to application logger
+            log_method = getattr(logger, level.lower(), logger.info)
+            log_method(f"System event: {message}")
+        except Exception as e:
+            logger.error(f"Error logging system event: {str(e)}")
+            logger.error(traceback.format_exc())
 
     async def register_agent(self, agent: Agent) -> Optional[int]:
         """Register an agent with the MCP.
@@ -55,15 +80,24 @@ class MasterControlProgram:
         Returns:
             The agent's ID if successful
         """
-        created_agent = self.repository.create_agent(agent)
-        if created_agent and created_agent.id:
-            self._log_system_event(
-                "info",
-                f"Registered agent {created_agent.name}",
-                {"agent_id": created_agent.id}
-            )
-            return created_agent.id
-        return None
+        logger.info(f"Registering agent: {agent.name}")
+        try:
+            created_agent = self.repository.create_agent(agent)
+            if created_agent and created_agent.id:
+                logger.info(f"Agent registered successfully with ID: {created_agent.id}")
+                self._log_system_event(
+                    "info",
+                    f"Registered agent {created_agent.name}",
+                    {"agent_id": created_agent.id}
+                )
+                return created_agent.id
+            else:
+                logger.warning(f"Failed to register agent: {agent.name}")
+                return None
+        except Exception as e:
+            logger.error(f"Error registering agent: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
 
     async def create_task(self, task: Task) -> Optional[int]:
         """Create a new task.
@@ -83,6 +117,80 @@ class MasterControlProgram:
             )
             return created_task.id
         return None
+
+    async def add_task(self, task: Task) -> Optional[Task]:
+        """Add a task to the system.
+
+        Args:
+            task: The task to add
+
+        Returns:
+            The task with ID if successful, None otherwise
+        """
+        logger.info(f"Adding task: {task.name}")
+        try:
+            created_task = self.repository.create_task(task)
+            if created_task and created_task.id:
+                logger.info(f"Task added successfully with ID: {created_task.id}")
+                self._log_system_event(
+                    "info", 
+                    f"Added task {created_task.name}", 
+                    {"task_id": created_task.id}
+                )
+                return created_task
+            else:
+                logger.warning(f"Failed to add task: {task.name}")
+                return None
+        except Exception as e:
+            logger.error(f"Error adding task: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
+            
+    async def get_task(self, task_id: str) -> Optional[Task]:
+        """Get a task by ID.
+
+        Args:
+            task_id: The ID of the task to get
+
+        Returns:
+            The task if found, None otherwise
+        """
+        logger.info(f"Getting task with ID: {task_id}")
+        try:
+            # Convert string ID to integer
+            try:
+                task_id_int = int(task_id)
+            except ValueError:
+                logger.error(f"Invalid task ID format: {task_id}")
+                return None
+                
+            task = self.repository.get_task(task_id_int)
+            if task:
+                logger.debug(f"Found task: {task.name} (ID: {task.id})")
+                return task
+            else:
+                logger.warning(f"Task with ID {task_id} not found")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting task: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None
+            
+    async def get_all_tasks(self) -> List[Task]:
+        """Get all tasks.
+
+        Returns:
+            List of all tasks
+        """
+        logger.debug("Getting all tasks")
+        try:
+            tasks = self.repository.get_all_tasks()
+            logger.debug(f"Retrieved {len(tasks)} tasks")
+            return tasks
+        except Exception as e:
+            logger.error(f"Error getting all tasks: {str(e)}")
+            logger.error(traceback.format_exc())
+            return []
 
     async def update_task_status(self, task_id: int, status: str,
                                output_data: Optional[Dict] = None,
@@ -205,40 +313,58 @@ class MasterControlProgram:
 
     async def start(self):
         """Start the MCP."""
-        self.running = True
-        self._log_system_event("info", "MCP started")
+        logger.info("Starting MCP main loop")
+        try:
+            self.running = True
+            self._log_system_event("info", "MCP started")
 
-        while self.running:
-            try:
-                # Get system status
-                status = await self.get_system_status()
-                if status:
-                    # Log system status periodically
-                    if status.running_tasks > 0 or status.pending_tasks > 0:
-                        self._log_system_event(
-                            "debug",
-                            "System status update",
-                            status.dict()
-                        )
+            logger.info("MCP entering main loop")
+            while self.running:
+                try:
+                    # Get system status
+                    logger.debug("Fetching system status")
+                    status = await self.get_system_status()
+                    if status:
+                        # Log system status periodically
+                        if status.running_tasks > 0 or status.pending_tasks > 0:
+                            logger.debug(f"System status: {status.dict()}")
+                            self._log_system_event(
+                                "debug",
+                                "System status update",
+                                status.dict()
+                            )
 
-                # TODO: Implement task scheduling and agent assignment logic
-                # This would involve:
-                # 1. Querying for pending tasks
-                # 2. Finding available agents
-                # 3. Matching tasks to agents based on capabilities
-                # 4. Updating task status and agent assignments
+                    # TODO: Implement task scheduling and agent assignment logic
+                    # This would involve:
+                    # 1. Querying for pending tasks
+                    # 2. Finding available agents
+                    # 3. Matching tasks to agents based on capabilities
+                    # 4. Updating task status and agent assignments
 
-                await asyncio.sleep(1)  # Prevent CPU overuse
+                    await asyncio.sleep(1)  # Prevent CPU overuse
 
-            except Exception as e:
-                self._log_system_event(
-                    "error",
-                    f"Error in MCP main loop: {str(e)}",
-                    {"error": str(e)}
-                )
-                await asyncio.sleep(5)  # Wait before retrying
+                except Exception as e:
+                    logger.error(f"Error in MCP main loop iteration: {str(e)}")
+                    logger.error(traceback.format_exc())
+                    self._log_system_event(
+                        "error",
+                        f"Error in MCP main loop: {str(e)}",
+                        {"error": str(e), "traceback": traceback.format_exc()}
+                    )
+                    await asyncio.sleep(5)  # Wait before retrying
+        except Exception as e:
+            logger.error(f"Critical error in MCP start: {str(e)}")
+            logger.error(traceback.format_exc())
+            self._log_system_event(
+                "error",
+                f"Critical error in MCP start: {str(e)}",
+                {"error": str(e), "traceback": traceback.format_exc()}
+            )
+            raise
 
-    def stop(self):
+    async def stop(self):
         """Stop the MCP."""
+        logger.info("Stopping MCP")
         self.running = False
-        self._log_system_event("info", "MCP stopped") 
+        self._log_system_event("info", "MCP stopped")
+        logger.info("MCP has been stopped") 

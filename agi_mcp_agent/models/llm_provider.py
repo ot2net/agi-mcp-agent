@@ -25,6 +25,7 @@ class LLMProviderModel(Base):
     region = Column(String(50), nullable=True)  # e.g. 'global', 'cn', 'us', etc.
     provider_module = Column(String(255), nullable=False)
     provider_class = Column(String(255), nullable=False)
+    api_key = Column(Text, nullable=True)  # Make api_key nullable
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -91,10 +92,11 @@ class LLMModelModel(Base):
 
 
 def get_default_providers() -> List[Dict[str, Any]]:
-    """Get the default list of providers to be inserted in the database."""
+    """Get default provider configurations."""
     return [
         {
             "name": "openai",
+            "type": "openai",  # Explicitly set type
             "display_name": "OpenAI",
             "description": "OpenAI models including GPT-3.5 and GPT-4",
             "website": "https://openai.com/",
@@ -106,6 +108,7 @@ def get_default_providers() -> List[Dict[str, Any]]:
         },
         {
             "name": "anthropic",
+            "type": "anthropic",  # Explicitly set type
             "display_name": "Anthropic",
             "description": "Anthropic Claude models",
             "website": "https://www.anthropic.com/",
@@ -117,9 +120,10 @@ def get_default_providers() -> List[Dict[str, Any]]:
         },
         {
             "name": "google",
-            "display_name": "Google",
+            "type": "google",  # Explicitly set type
+            "display_name": "Google AI",
             "description": "Google Gemini models",
-            "website": "https://deepmind.google/technologies/gemini/",
+            "website": "https://ai.google.dev/",
             "is_enabled": True,
             "is_builtin": True,
             "region": "global",
@@ -128,6 +132,7 @@ def get_default_providers() -> List[Dict[str, Any]]:
         },
         {
             "name": "mistral",
+            "type": "mistral",  # Explicitly set type
             "display_name": "Mistral AI",
             "description": "Mistral AI models",
             "website": "https://mistral.ai/",
@@ -138,27 +143,29 @@ def get_default_providers() -> List[Dict[str, Any]]:
             "provider_class": "MistralProvider",
         },
         {
+            "name": "qwen",
+            "type": "rest",  # Set a default type for providers without dedicated types
+            "display_name": "Qwen",
+            "description": "Qwen models from Alibaba Cloud",
+            "website": "https://qwen.ai/",
+            "is_enabled": True,
+            "is_builtin": True,
+            "region": "global",
+            "provider_module": "agi_mcp_agent.agent.llm_providers.qwen",
+            "provider_class": "QwenProvider",
+        },
+        {
             "name": "deepseek",
+            "type": "deepseek",  # Updated from 'test' to 'deepseek'
             "display_name": "DeepSeek",
             "description": "DeepSeek AI models",
             "website": "https://deepseek.ai/",
             "is_enabled": True,
             "is_builtin": True,
-            "region": "cn",
+            "region": "global",
             "provider_module": "agi_mcp_agent.agent.llm_providers.deepseek",
             "provider_class": "DeepSeekProvider",
-        },
-        {
-            "name": "qwen",
-            "display_name": "Qwen",
-            "description": "Alibaba Qwen models",
-            "website": "https://qianwen.aliyun.com/",
-            "is_enabled": True,
-            "is_builtin": True,
-            "region": "cn",
-            "provider_module": "agi_mcp_agent.agent.llm_providers.qwen",
-            "provider_class": "QwenProvider",
-        },
+        }
     ]
 
 

@@ -1,11 +1,13 @@
 """MCP (Multi-Cloud Platform) repository layer."""
 
 import logging
+import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
+import traceback
 
 from agi_mcp_agent.mcp.models import Agent, Task, TaskDependency, AgentMetric, SystemLog, SystemStatus
 
@@ -40,6 +42,10 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
+                # Convert Python lists and dicts to JSON
+                capabilities_json = json.dumps(agent.capabilities) if agent.capabilities else None
+                metadata_json = json.dumps(agent.metadata) if agent.metadata else None
+                
                 query = text("""
                     INSERT INTO mcp_agents (name, type, capabilities, status, metadata)
                     VALUES (:name, :type, :capabilities, :status, :metadata)
@@ -50,9 +56,9 @@ class MCPRepository:
                     {
                         "name": agent.name,
                         "type": agent.type,
-                        "capabilities": agent.capabilities,
+                        "capabilities": capabilities_json,
                         "status": agent.status,
-                        "metadata": agent.metadata
+                        "metadata": metadata_json
                     }
                 ).fetchone()
                 session.commit()
@@ -62,7 +68,7 @@ class MCPRepository:
                     agent.created_at = result[1]
                     agent.updated_at = result[2]
                     return agent
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Error creating agent: {e}")
             return None
 
@@ -80,13 +86,32 @@ class MCPRepository:
                 query = text("SELECT * FROM mcp_agents WHERE id = :id")
                 result = session.execute(query, {"id": agent_id}).fetchone()
                 if result:
+                    # Handle JSON serialization/deserialization
+                    capabilities = result[3]
+                    metadata = result[5]
+                    
+                    # Convert to Python if stored as JSON string
+                    if isinstance(capabilities, str):
+                        try:
+                            capabilities = json.loads(capabilities)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode capabilities JSON for agent {agent_id}")
+                            capabilities = {}
+                    
+                    if isinstance(metadata, str):
+                        try:
+                            metadata = json.loads(metadata)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode metadata JSON for agent {agent_id}")
+                            metadata = {}
+                            
                     return Agent(
                         id=result[0],
                         name=result[1],
                         type=result[2],
-                        capabilities=result[3],
+                        capabilities=capabilities,
                         status=result[4],
-                        metadata=result[5],
+                        metadata=metadata,
                         created_at=result[6],
                         updated_at=result[7]
                     )
@@ -106,6 +131,10 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
+                # Convert Python dicts to JSON
+                input_data_json = json.dumps(task.input_data) if task.input_data else None
+                output_data_json = json.dumps(task.output_data) if task.output_data else None
+                
                 query = text("""
                     INSERT INTO mcp_tasks (
                         name, description, status, priority, agent_id,
@@ -126,8 +155,8 @@ class MCPRepository:
                         "priority": task.priority,
                         "agent_id": task.agent_id,
                         "parent_task_id": task.parent_task_id,
-                        "input_data": task.input_data,
-                        "output_data": task.output_data,
+                        "input_data": input_data_json,
+                        "output_data": output_data_json,
                         "error_message": task.error_message
                     }
                 ).fetchone()
@@ -137,7 +166,7 @@ class MCPRepository:
                     task.id = result[0]
                     task.created_at = result[1]
                     return task
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Error creating task: {e}")
             return None
 
@@ -157,6 +186,9 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
+                # Convert output_data dict to JSON string
+                output_data_json = json.dumps(output_data) if output_data else None
+                
                 query = text("""
                     UPDATE mcp_tasks
                     SET status = :status,
@@ -173,13 +205,13 @@ class MCPRepository:
                     {
                         "id": task_id,
                         "status": status,
-                        "output_data": output_data,
+                        "output_data": output_data_json,
                         "error_message": error_message
                     }
                 )
                 session.commit()
                 return True
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Error updating task status: {e}")
             return False
 
@@ -237,6 +269,9 @@ class MCPRepository:
         """
         try:
             with self._get_session() as session:
+                # Convert metadata dict to JSON string
+                metadata_json = json.dumps(log.metadata) if log.metadata else None
+                
                 query = text("""
                     INSERT INTO mcp_system_logs (level, component, message, metadata)
                     VALUES (:level, :component, :message, :metadata)
@@ -247,11 +282,132 @@ class MCPRepository:
                         "level": log.level,
                         "component": log.component,
                         "message": log.message,
-                        "metadata": log.metadata
+                        "metadata": metadata_json
                     }
                 )
                 session.commit()
                 return True
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Error adding system log: {e}")
-            return False 
+            return False
+
+    def get_task(self, task_id: int) -> Optional[Task]:
+        """Get a task by ID.
+
+        Args:
+            task_id: The ID of the task to retrieve
+
+        Returns:
+            The task if found, None otherwise
+        """
+        try:
+            with self._get_session() as session:
+                query = text("""
+                    SELECT id, name, description, status, priority, agent_id,
+                           parent_task_id, input_data, output_data, error_message,
+                           created_at, started_at, completed_at
+                    FROM mcp_tasks
+                    WHERE id = :id
+                """)
+                result = session.execute(query, {"id": task_id}).fetchone()
+                
+                if not result:
+                    return None
+                    
+                # Convert JSON strings to Python dicts
+                input_data = result[7]
+                output_data = result[8]
+                
+                if input_data and isinstance(input_data, str):
+                    try:
+                        input_data = json.loads(input_data)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to decode input_data JSON for task {task_id}")
+                        input_data = {}
+                        
+                if output_data and isinstance(output_data, str):
+                    try:
+                        output_data = json.loads(output_data)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to decode output_data JSON for task {task_id}")
+                        output_data = {}
+                
+                return Task(
+                    id=result[0],
+                    name=result[1],
+                    description=result[2],
+                    status=result[3],
+                    priority=result[4],
+                    agent_id=result[5],
+                    parent_task_id=result[6],
+                    input_data=input_data,
+                    output_data=output_data,
+                    error_message=result[9],
+                    created_at=result[10],
+                    started_at=result[11],
+                    completed_at=result[12]
+                )
+        except Exception as e:
+            logger.error(f"Error getting task: {e}")
+            logger.error(traceback.format_exc())
+            return None
+            
+    def get_all_tasks(self) -> List[Task]:
+        """Get all tasks.
+
+        Returns:
+            List of all tasks
+        """
+        tasks = []
+        try:
+            with self._get_session() as session:
+                query = text("""
+                    SELECT id, name, description, status, priority, agent_id,
+                           parent_task_id, input_data, output_data, error_message,
+                           created_at, started_at, completed_at
+                    FROM mcp_tasks
+                    ORDER BY created_at DESC
+                """)
+                results = session.execute(query).fetchall()
+                
+                for result in results:
+                    # Convert JSON strings to Python dicts
+                    input_data = result[7]
+                    output_data = result[8]
+                    
+                    if input_data and isinstance(input_data, str):
+                        try:
+                            input_data = json.loads(input_data)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode input_data JSON for task {result[0]}")
+                            input_data = {}
+                            
+                    if output_data and isinstance(output_data, str):
+                        try:
+                            output_data = json.loads(output_data)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode output_data JSON for task {result[0]}")
+                            output_data = {}
+                    
+                    task = Task(
+                        id=result[0],
+                        name=result[1],
+                        description=result[2],
+                        status=result[3],
+                        priority=result[4],
+                        agent_id=result[5],
+                        parent_task_id=result[6],
+                        input_data=input_data,
+                        output_data=output_data,
+                        error_message=result[9],
+                        created_at=result[10],
+                        started_at=result[11],
+                        completed_at=result[12]
+                    )
+                    tasks.append(task)
+                    
+        except Exception as e:
+            logger.error(f"Error getting all tasks: {e}")
+            logger.error(traceback.format_exc())
+        
+        return tasks 

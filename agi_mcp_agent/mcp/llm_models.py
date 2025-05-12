@@ -9,15 +9,18 @@ class LLMProvider(BaseModel):
     id: Optional[int] = None
     name: str  # e.g. 'openai', 'anthropic'
     type: str  # e.g. 'openai', 'anthropic', 'rest'
-    api_key: str
-    models: List[str]  # List of supported model names
+    api_key: Optional[str] = None  # Make api_key optional
+    models: List[str] = []  # List of supported model names
     status: str = "enabled"
     metadata: Optional[Dict[str, Any]] = None
 
     @validator('type')
     def validate_type(cls, v):
         """Validate provider type."""
-        valid_types = ['openai', 'anthropic', 'rest']
+        valid_types = [
+            'openai', 'anthropic', 'rest', 'google', 'mistral', 
+            'huggingface', 'llama', 'cohere', 'deepseek', 'qwen'
+        ]
         if v not in valid_types:
             raise ValueError(f'Provider type must be one of {valid_types}')
         return v

@@ -46,6 +46,12 @@ class LLMProviderRepository:
                 existing = session.query(LLMProviderModel).filter_by(name=name).first()
                 
                 if not existing:
+                    # Ensure type is set to name if not provided
+                    if "type" not in provider_data or not provider_data["type"]:
+                        provider_data["type"] = name
+                    
+                    # Remove api_key from provider data if it exists
+                    provider_data.pop("api_key", None)
                     provider = LLMProviderModel(name=name, **provider_data)
                     session.add(provider)
                     logger.info(f"Added default provider: {name}")

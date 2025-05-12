@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS llm_providers (
     id SERIAL PRIMARY KEY,
     name VARCHAR(64) UNIQUE NOT NULL, -- e.g. 'openai', 'anthropic'
     type VARCHAR(32) NOT NULL,        -- e.g. 'openai', 'anthropic', 'rest'
-    api_key TEXT NOT NULL,
+    api_key TEXT,                     -- Make api_key nullable
     models TEXT[],                    -- List of supported model names
     status VARCHAR(16) DEFAULT 'enabled',
     created_at TIMESTAMP DEFAULT NOW(),
