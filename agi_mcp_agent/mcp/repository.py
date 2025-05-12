@@ -151,6 +151,25 @@ class MCPRepository:
             logger.error(f"Error getting agent: {e}")
         return None
 
+    def delete_agent(self, agent_id: int) -> bool:
+        """Delete an agent.
+
+        Args:
+            agent_id: The ID of the agent to delete
+
+        Returns:
+            Whether the deletion was successful
+        """
+        try:
+            with self._get_session() as session:
+                query = text("DELETE FROM mcp_agents WHERE id = :id")
+                result = session.execute(query, {"id": agent_id})
+                session.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting agent: {e}")
+            return False
+
     # Task operations
     def create_task(self, task: Task) -> Optional[Task]:
         """Create a new task.
@@ -452,4 +471,57 @@ class MCPRepository:
             logger.error(f"Error getting all tasks: {e}")
             logger.error(traceback.format_exc())
         
-        return tasks 
+        return tasks
+
+    def get_all_agents(self) -> List[Agent]:
+        """Get all agents.
+
+        Returns:
+            List of all agents
+        """
+        agents = []
+        try:
+            with self._get_session() as session:
+                query = text("""
+                    SELECT id, name, type, capabilities, status, metadata, created_at, updated_at
+                    FROM mcp_agents
+                    ORDER BY created_at DESC
+                """)
+                results = session.execute(query).fetchall()
+                
+                for result in results:
+                    # Convert JSON strings to Python dicts
+                    capabilities = result[3]
+                    metadata = result[5]
+                    
+                    if capabilities and isinstance(capabilities, str):
+                        try:
+                            capabilities = json.loads(capabilities)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode capabilities JSON for agent {result[0]}")
+                            capabilities = {}
+                            
+                    if metadata and isinstance(metadata, str):
+                        try:
+                            metadata = json.loads(metadata)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode metadata JSON for agent {result[0]}")
+                            metadata = {}
+                    
+                    agent = Agent(
+                        id=result[0],
+                        name=result[1],
+                        type=result[2],
+                        capabilities=capabilities,
+                        status=result[4],
+                        metadata=metadata,
+                        created_at=result[6],
+                        updated_at=result[7]
+                    )
+                    agents.append(agent)
+                    
+        except Exception as e:
+            logger.error(f"Error getting all agents: {e}")
+            logger.error(traceback.format_exc())
+        
+        return agents 

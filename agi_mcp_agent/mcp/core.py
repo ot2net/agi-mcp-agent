@@ -367,4 +367,55 @@ class MasterControlProgram:
         logger.info("Stopping MCP")
         self.running = False
         self._log_system_event("info", "MCP stopped")
-        logger.info("MCP has been stopped") 
+        logger.info("MCP has been stopped")
+
+    async def get_all_agents(self) -> List[Agent]:
+        """Get all agents.
+
+        Returns:
+            List of all agents
+        """
+        logger.debug("Getting all agents")
+        try:
+            agents = self.repository.get_all_agents()
+            logger.debug(f"Retrieved {len(agents)} agents")
+            return agents
+        except Exception as e:
+            logger.error(f"Error getting all agents: {str(e)}")
+            logger.error(traceback.format_exc())
+            return []
+
+    async def unregister_agent(self, agent_id: int) -> bool:
+        """Unregister an agent from the MCP.
+
+        Args:
+            agent_id: The ID of the agent to unregister
+
+        Returns:
+            Whether the unregistration was successful
+        """
+        logger.info(f"Unregistering agent with ID: {agent_id}")
+        try:
+            # 尝试获取 agent 以确认它存在
+            agent = self.repository.get_agent(agent_id)
+            if not agent:
+                logger.warning(f"Cannot unregister agent {agent_id}: not found")
+                return False
+                
+            # 从数据库中删除 agent
+            success = self.repository.delete_agent(agent_id)
+            if success:
+                logger.info(f"Agent {agent_id} unregistered successfully")
+                self._log_system_event(
+                    "info",
+                    f"Unregistered agent {agent.name}",
+                    {"agent_id": agent_id}
+                )
+                return True
+            else:
+                logger.warning(f"Failed to unregister agent {agent_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error unregistering agent: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False 

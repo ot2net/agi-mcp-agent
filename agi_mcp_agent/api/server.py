@@ -7,7 +7,7 @@ import uuid
 import sys
 import traceback
 import threading
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Any
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -155,7 +155,7 @@ class AgentResponse(BaseModel):
     id: str
     name: str
     status: str
-    capabilities: List[str]
+    capabilities: Union[List[str], Dict[str, Any], Any] = Field(default_factory=list)
 
 
 class TaskCreate(BaseModel):
@@ -261,11 +261,16 @@ async def create_agent(agent: AgentCreate):
     
     mcp.register_agent(new_agent)
     
+    # 确保 capabilities 被正确处理
+    capabilities = new_agent.capabilities
+    if capabilities is None:
+        capabilities = []
+        
     return {
         "id": new_agent.id,
         "name": new_agent.name,
         "status": new_agent.status,
-        "capabilities": new_agent.capabilities,
+        "capabilities": capabilities,
     }
 
 
@@ -276,15 +281,31 @@ async def list_agents():
     Returns:
         List of agents
     """
-    return [
-        {
-            "id": agent.id,
-            "name": agent.name,
-            "status": agent.status,
-            "capabilities": agent.capabilities,
-        }
-        for agent in mcp.agents.values()
-    ]
+    try:
+        agents = await mcp.get_all_agents()
+        
+        agent_responses = []
+        for agent in agents:
+            # 确保 capabilities 被正确处理，如果是字典则保持原样
+            capabilities = agent.capabilities
+            if capabilities is None:
+                capabilities = []
+                
+            agent_responses.append({
+                "id": str(agent.id),
+                "name": agent.name,
+                "status": agent.status,
+                "capabilities": capabilities,
+            })
+            
+        return agent_responses
+    except Exception as e:
+        logger.error(f"Error listing agents: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing agents: {str(e)}"
+        )
 
 
 @app.get("/agents/{agent_id}", response_model=AgentResponse)
@@ -297,16 +318,38 @@ async def get_agent(agent_id: str):
     Returns:
         The agent
     """
-    if agent_id not in mcp.agents:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    
-    agent = mcp.agents[agent_id]
-    return {
-        "id": agent.id,
-        "name": agent.name,
-        "status": agent.status,
-        "capabilities": agent.capabilities,
-    }
+    try:
+        # 尝试将ID转换为整数
+        try:
+            agent_id_int = int(agent_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid agent ID format")
+            
+        agent = mcp.repository.get_agent(agent_id_int)
+        
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # 确保 capabilities 被正确处理
+        capabilities = agent.capabilities
+        if capabilities is None:
+            capabilities = []
+            
+        return {
+            "id": str(agent.id),
+            "name": agent.name,
+            "status": agent.status,
+            "capabilities": capabilities,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting agent: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting agent: {str(e)}"
+        )
 
 
 @app.delete("/agents/{agent_id}")
@@ -319,11 +362,28 @@ async def delete_agent(agent_id: str):
     Returns:
         Success message
     """
-    if agent_id not in mcp.agents:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    
-    mcp.unregister_agent(agent_id)
-    return {"message": f"Agent {agent_id} deleted"}
+    try:
+        # 尝试将ID转换为整数
+        try:
+            agent_id_int = int(agent_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid agent ID format")
+            
+        success = await mcp.unregister_agent(agent_id_int)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Agent not found or could not be deleted")
+        
+        return {"message": f"Agent {agent_id} deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting agent: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting agent: {str(e)}"
+        )
 
 
 @app.post("/tasks/", response_model=TaskResponse)
@@ -469,9 +529,25 @@ async def get_system_status():
     Returns:
         The system status
     """
-    status = mcp.get_system_status()
-    status["timestamp"] = status["timestamp"].isoformat()
-    return status
+    status = await mcp.get_system_status()
+    
+    # 将SystemStatus对象转换为字典并处理timestamp
+    response = {
+        "running": mcp.running,
+        "tasks": {
+            "pending": status.pending_tasks,
+            "running": status.running_tasks,
+            "completed": status.completed_tasks,
+            "failed": status.failed_tasks
+        },
+        "agents": {
+            "total": status.total_agents,
+            "active": status.active_agents
+        },
+        "timestamp": status.timestamp.isoformat()
+    }
+    
+    return response
 
 
 @app.post("/system/start")
