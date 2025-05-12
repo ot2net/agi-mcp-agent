@@ -35,32 +35,59 @@ class LLMService:
         try:
             with self.repository._get_session() as session:
                 # Load providers
-                provider_query = text("SELECT * FROM llm_providers WHERE status = 'enabled'")
+                provider_query = text("""
+                    SELECT id, name, type, api_key, models, status, metadata, display_name
+                    FROM llm_providers 
+                    WHERE status = 'enabled'
+                """)
                 providers = session.execute(provider_query).fetchall()
                 for p in providers:
-                    self._providers[p[0]] = LLMProvider(
-                        id=p[0],
-                        name=p[1],
-                        type=p[2],
-                        api_key=p[3],
-                        models=p[4],
-                        status=p[5],
-                        metadata=p[6]
-                    )
+                    try:
+                        # Convert models string to list if it's a string
+                        models = p[4] if isinstance(p[4], list) else []
+                        # Convert metadata to dict if it's not already
+                        metadata = p[6] if isinstance(p[6], dict) else {}
+                        
+                        self._providers[p[0]] = LLMProvider(
+                            id=p[0],
+                            name=p[1],
+                            type=p[2],
+                            api_key=p[3],
+                            models=models,
+                            status=p[5],
+                            metadata=metadata
+                        )
+                    except Exception as e:
+                        logger.error(f"Error loading provider {p[1]}: {e}")
+                        continue
 
                 # Load models
-                model_query = text("SELECT * FROM llm_models WHERE status = 'enabled'")
+                model_query = text("""
+                    SELECT id, provider_id, model_name, capability, params, status, metadata
+                    FROM llm_models 
+                    WHERE status = 'enabled'
+                """)
                 models = session.execute(model_query).fetchall()
                 for m in models:
-                    self._models[m[0]] = LLMModel(
-                        id=m[0],
-                        provider_id=m[1],
-                        model_name=m[2],
-                        capability=m[3],
-                        params=m[4],
-                        status=m[5],
-                        metadata=m[6]
-                    )
+                    try:
+                        # Convert params to dict if it's not already
+                        params = m[4] if isinstance(m[4], dict) else {}
+                        # Convert metadata to dict if it's not already
+                        metadata = m[6] if isinstance(m[6], dict) else {}
+                        
+                        self._models[m[0]] = LLMModel(
+                            id=m[0],
+                            provider_id=m[1],
+                            model_name=m[2],
+                            capability=m[3],
+                            params=params,
+                            status=m[5],
+                            metadata=metadata
+                        )
+                    except Exception as e:
+                        logger.error(f"Error loading model {m[2]}: {e}")
+                        continue
+                        
         except Exception as e:
             logger.error(f"Error loading providers and models: {e}")
 

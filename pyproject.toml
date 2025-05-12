@@ -47,6 +47,7 @@ agi-mcp-agent-api = "agi_mcp_agent.api.server:start_server"
 llm-example = "examples.llm_example:main"
 db-init = "scripts.db_init:init_database"
 db-test = "scripts.db_test:test_database"
+start-server = "scripts.start_server:main"
 
 [build-system]
 requires = ["poetry-core"]

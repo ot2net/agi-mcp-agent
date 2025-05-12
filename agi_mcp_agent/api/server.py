@@ -2,8 +2,10 @@
 
 import asyncio
 import logging
+import os
 import uuid
 from typing import Dict, List, Optional
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +22,20 @@ from agi_mcp_agent.environment import (
     MCPEnvironment
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+# Get database URL from environment
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise ValueError("DATABASE_URL environment variable is not set")
 
 # Create the FastAPI app
 app = FastAPI(
@@ -38,8 +53,13 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有HTTP头
 )
 
-# Create the MCP
-mcp = MasterControlProgram()
+# Create the MCP with database configuration
+try:
+    mcp = MasterControlProgram(database_url)
+    logger.info("MCP initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize MCP: {str(e)}")
+    raise
 
 # Create a task to manage the MCP
 mcp_task = None
@@ -56,12 +76,13 @@ async def startup_event():
     global is_mcp_running
     try:
         # Start the MCP
-        asyncio.create_task(mcp.start())
+        await mcp.start()
         is_mcp_running = True
         logger.info("MCP started successfully on server startup")
     except Exception as e:
         logger.error(f"Failed to start MCP on startup: {str(e)}")
         is_mcp_running = False
+        raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -69,11 +90,12 @@ async def shutdown_event():
     global is_mcp_running
     try:
         # Stop the MCP
-        mcp.stop()
+        await mcp.stop()
         is_mcp_running = False
         logger.info("MCP stopped successfully on server shutdown")
     except Exception as e:
         logger.error(f"Error stopping MCP on shutdown: {str(e)}")
+        raise
 
 # Models for API requests and responses
 class AgentCreate(BaseModel):
@@ -655,8 +677,16 @@ def start_server():
     """Start the FastAPI server."""
     import uvicorn
     
+    # Get port from environment or use default
+    port = int(os.getenv("PORT", "8000"))
+    
     # Start the server
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "agi_mcp_agent.api.server:app",
+        host="0.0.0.0",
+        port=port,
+        reload=True
+    )
 
 
 if __name__ == "__main__":
