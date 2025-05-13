@@ -4,6 +4,7 @@ import {
   LLMProviderCreate,
   LLMModelCreate
 } from '@/types/llm';
+import { SystemModelSettings } from '@/components/llm/ModelSettingsModal';
 
 // 获取后端API基础URL
 const API_BASE_URL = '/api/llm';
@@ -106,6 +107,29 @@ export async function getProviderModels(providerId: number): Promise<LLMModel[]>
   const response = await fetch(`${API_BASE_URL}/providers/${providerId}/models`);
   if (!response.ok) {
     throw new Error(`Failed to fetch models for provider ${providerId}: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+// 系统模型设置API
+export async function getSystemModelSettings(): Promise<SystemModelSettings> {
+  const response = await fetch(`${API_BASE_URL}/system/models`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch system model settings: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function updateSystemModelSettings(settings: SystemModelSettings): Promise<SystemModelSettings> {
+  const response = await fetch(`${API_BASE_URL}/system/models`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(settings),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update system model settings: ${response.statusText}`);
   }
   return response.json();
 } 

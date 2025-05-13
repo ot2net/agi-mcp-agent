@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { HiOutlinePlus, HiOutlineChip, HiOutlineCog, HiOutlineCube, HiSearch, HiOutlinePencil } from 'react-icons/hi';
 import { Button } from '@/components/base/Button';
-import { getProviders, getModels, getProviderModels, updateProviderApiKey } from '@/api/llm';
+import { getProviders, getModels, getProviderModels, updateProviderApiKey, updateSystemModelSettings, getSystemModelSettings } from '@/api/llm';
 import { LLMProvider, LLMModel } from '@/types/llm';
 import { ModelIcon } from '@/components/llm/ModelIcon';
 import { Input } from '@/components/base/Input';
 import { ApiKeyConfig } from '@/components/llm/ApiKeyConfig';
+import { ModelSettingsModal, SystemModelSettings } from '@/components/llm/ModelSettingsModal';
 
 // 定义模型的能力类型
 type ModelCapability = 'LLM' | 'TEXT EMBEDDING' | 'SPEECH2TEXT' | 'TTS' | 'MODERATION' | 'RERANK';
@@ -54,7 +55,7 @@ const capabilityLabels: Record<string, { label: string, bgColor: string, textCol
 
 // 定义提供商支持的能力
 const providerCapabilities: Record<string, string[]> = {
-  'openai': ['chat', 'embedding', 'moderation', 'tts'],
+  'openai': ['chat', 'embedding', 'moderation', 'tts', 'speech'],
   'anthropic': ['chat'],
   'google': ['chat', 'embedding'],
   'mistral': ['chat'],
@@ -75,6 +76,8 @@ export default function LLMPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<LLMProvider | null>(null);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isModelSettingsModalOpen, setIsModelSettingsModalOpen] = useState(false);
+  const [systemSettings, setSystemSettings] = useState<SystemModelSettings | null>(null);
 
   // 获取数据
   const fetchData = async () => {
@@ -86,6 +89,22 @@ export default function LLMPage() {
       ]);
       setProviders(providersData);
       setModels(modelsData);
+
+      // 获取系统设置中使用的默认模型
+      try {
+        const systemModelSettings = await getSystemModelSettings();
+        setSystemSettings(systemModelSettings);
+      } catch (error) {
+        console.error('Error fetching system settings:', error);
+        // 当无法获取系统设置时使用默认值
+        setSystemSettings({
+          chatModel: modelsData.find(m => m.capability === 'chat')?.id || null,
+          embeddingModel: modelsData.find(m => m.capability === 'embedding')?.id || null,
+          rerankModel: modelsData.find(m => m.capability === 'rerank')?.id || null,
+          speechToTextModel: modelsData.find(m => m.capability === 'speech')?.id || null,
+          textToSpeechModel: modelsData.find(m => m.capability === 'tts')?.id || null,
+        });
+      }
 
       // 为每个提供商获取模型
       const modelsByProvider: Record<number, LLMModel[]> = {};
@@ -136,6 +155,18 @@ export default function LLMPage() {
     } catch (error) {
       console.error('Error saving API key:', error);
       throw error; // 让ApiKeyConfig组件可以捕获错误
+    }
+  };
+
+  // 保存系统模型设置
+  const handleSaveSystemSettings = async (settings: SystemModelSettings) => {
+    try {
+      await updateSystemModelSettings(settings);
+      setSystemSettings(settings);
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error saving system settings:', error);
+      return Promise.reject(error);
     }
   };
 
@@ -198,19 +229,16 @@ export default function LLMPage() {
               <HiOutlinePlus className="mr-2" />
               Add Provider
             </Button>
+            
+            <Button
+              variant="outline"
+              className="flex items-center"
+              onClick={() => setIsModelSettingsModalOpen(true)}
+            >
+              <HiOutlineCog className="mr-2" />
+              System Model Settings
+            </Button>
           </div>
-        </div>
-
-        {/* 系统模型设置按钮 */}
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center text-sm"
-          >
-            <HiOutlineCog className="mr-2" />
-            System Model Settings
-          </Button>
         </div>
 
         {isLoading ? (
@@ -237,7 +265,9 @@ export default function LLMPage() {
                       <div className="p-5">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="flex items-center space-x-4">
-                            <ModelIcon type={provider.type} size="lg" withBackground={true} />
+                            <div className="flex items-center justify-center h-12 w-12">
+                              <ModelIcon type={provider.type} size="lg" withBackground={true} />
+                            </div>
                             <div>
                               <h3 className="text-lg font-semibold">{provider.name}</h3>
                               <div className="flex flex-wrap gap-2 mt-2">
@@ -325,9 +355,16 @@ export default function LLMPage() {
                                     </div>
                                   </div>
                                   
-                                  <div className="flex items-center space-x-2">
+                                  <div className="flex items-center">
+                                    {/* 显示系统默认标记 */}
+                                    {systemSettings && Object.values(systemSettings).includes(model.id) && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs font-medium mr-2">
+                                        SYSTEM DEFAULT
+                                      </span>
+                                    )}
+                                    
                                     <span className={`inline-flex h-2 w-2 rounded-full ${model.status === 'enabled' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                    <span className="text-sm">{model.status === 'enabled' ? 'Enabled' : 'Disabled'}</span>
+                                    <span className="text-sm ml-2">{model.status === 'enabled' ? 'Enabled' : 'Disabled'}</span>
                                   </div>
                                 </div>
                               ))}
@@ -401,8 +438,10 @@ export default function LLMPage() {
                   window.location.href = `/llm/providers/create?type=${provider}`;
                 }}
               >
-                <ModelIcon type={provider} size="lg" withBackground={true} />
-                <p className="mt-2 font-medium capitalize">{provider}</p>
+                <div className="flex justify-center items-center h-16 mb-2">
+                  <ModelIcon type={provider} size="lg" withBackground={true} />
+                </div>
+                <p className="font-medium capitalize">{provider}</p>
               </div>
             ))}
           </div>
@@ -430,6 +469,14 @@ export default function LLMPage() {
           onSave={handleSaveApiKey}
         />
       )}
+
+      {/* System Model Settings Modal */}
+      <ModelSettingsModal
+        isOpen={isModelSettingsModalOpen}
+        onClose={() => setIsModelSettingsModalOpen(false)}
+        onSave={handleSaveSystemSettings}
+        initialSettings={systemSettings || undefined}
+      />
     </div>
   );
 } 

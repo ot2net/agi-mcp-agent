@@ -12,8 +12,17 @@ import { ModelIcon } from '@/components/llm/ModelIcon';
 import Link from 'next/link';
 import { HiArrowLeft, HiLockClosed, HiOutlineExternalLink } from 'react-icons/hi';
 
+// Define provider config type
+interface ProviderConfigType {
+  keyFormat: string;
+  docLink: string;
+  hasOrgId: boolean;
+  hasBaseUrl: boolean;
+  apiBaseDefault?: string;
+}
+
 // 各提供商的API Key格式提示和文档链接
-const providerConfig = {
+const providerConfig: Record<string, ProviderConfigType> = {
   'openai': { 
     keyFormat: 'sk-...', 
     docLink: 'https://platform.openai.com/account/api-keys',
@@ -94,10 +103,10 @@ export function CreateProviderForm() {
       }));
       
       // 设置默认baseUrl
-      if (providerConfig[typeParam as keyof typeof providerConfig]?.hasBaseUrl) {
+      if (providerConfig[typeParam]?.hasBaseUrl) {
         setFormData(prev => ({
           ...prev,
-          base_url: providerConfig[typeParam as keyof typeof providerConfig]?.apiBaseDefault || ''
+          base_url: providerConfig[typeParam]?.apiBaseDefault || ''
         }));
       }
     }
@@ -106,12 +115,12 @@ export function CreateProviderForm() {
   // 更新表单验证状态
   useEffect(() => {
     const isValid = formData.name.trim() !== '' && 
-                   formData.api_key.trim() !== '' && 
-                   (!providerConfig[formData.type as keyof typeof providerConfig]?.hasOrgId || 
+                   (formData.api_key || '').trim() !== '' && 
+                   (!providerConfig[formData.type]?.hasOrgId || 
                     (formData.org_id && formData.org_id.trim() !== '')) &&
-                   (!providerConfig[formData.type as keyof typeof providerConfig]?.hasBaseUrl || 
+                   (!providerConfig[formData.type]?.hasBaseUrl || 
                     (formData.base_url && formData.base_url.trim() !== ''));
-    setFormValid(isValid);
+    setFormValid(Boolean(isValid));
   }, [formData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -130,7 +139,7 @@ export function CreateProviderForm() {
       name: value.charAt(0).toUpperCase() + value.slice(1),
       // 重置组织ID和基础URL
       org_id: '',
-      base_url: providerConfig[value as keyof typeof providerConfig]?.apiBaseDefault || '',
+      base_url: providerConfig[value]?.apiBaseDefault || '',
     }));
   };
 
@@ -194,7 +203,9 @@ export function CreateProviderForm() {
       
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center">
-          <ModelIcon type={formData.type} size="lg" withBackground={true} className="mr-3" />
+          <div className="flex items-center justify-center w-12 h-12 mr-3 rounded-lg overflow-hidden">
+            <ModelIcon type={formData.type} size="lg" withBackground={true} />
+          </div>
           <span>Add {formData.type.charAt(0).toUpperCase() + formData.type.slice(1)}</span>
         </h1>
       </div>
@@ -219,7 +230,7 @@ export function CreateProviderForm() {
                   required
                   value={formData.type}
                   onChange={handleProviderTypeChange}
-                  className="block w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-12 pr-4 py-3 text-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="block w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-14 pr-4 py-3 text-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   {providerOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -228,7 +239,9 @@ export function CreateProviderForm() {
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <ModelIcon type={formData.type} size="md" withBackground={true} />
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg overflow-hidden">
+                    <ModelIcon type={formData.type} size="md" withBackground={true} />
+                  </div>
                 </div>
               </div>
             </div>

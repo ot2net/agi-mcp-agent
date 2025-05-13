@@ -20,7 +20,10 @@ export function ModelIcon({ type, size = 'md', className = '', withBackground = 
     'deepseek': '/models/deepseek.svg',
     'qwen': '/models/qwen.svg',
     'rest': '/models/qwen.svg', // For type "rest" which should use Qwen icon
-    'mistral': '/models/mistral.svg', // Now using actual mistral.svg file
+    'mistral': '/models/mistral.svg',
+    'huggingface': '/models/huggingface.svg',
+    'cohere': '/models/cohere.svg',
+    'minimax': '/models/minimax.svg',
   };
   
   // Map of provider types to their brand colors for background
@@ -33,7 +36,10 @@ export function ModelIcon({ type, size = 'md', className = '', withBackground = 
     'deepseek': 'bg-blue-100 dark:bg-blue-900/20',
     'qwen': 'bg-blue-100 dark:bg-blue-900/20',
     'rest': 'bg-blue-100 dark:bg-blue-900/20',
-    'mistral': 'bg-indigo-100 dark:bg-indigo-900/20', // Updated mistral background color
+    'mistral': 'bg-indigo-100 dark:bg-indigo-900/20',
+    'huggingface': 'bg-yellow-100 dark:bg-yellow-900/20',
+    'cohere': 'bg-purple-100 dark:bg-purple-900/20',
+    'minimax': 'bg-gray-100 dark:bg-gray-800',
   };
 
   // Get icon from map, or from partial match
@@ -77,29 +83,29 @@ export function ModelIcon({ type, size = 'md', className = '', withBackground = 
   const iconSrc = getIconSrc(type);
   const bgColor = withBackground ? getColor(type) : '';
   
-  // Size classes - increased sizes to be more prominent
+  // Icon sizes - consistent across different providers
   const sizeClasses = {
     sm: 'w-6 h-6',
     md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-    xl: 'w-16 h-16'
+    lg: 'w-10 h-10',
+    xl: 'w-14 h-14'
   };
 
   const sizeClass = sizeClasses[size];
   
-  // Background container sizes
+  // Background container sizes - slightly larger than the icon to provide padding
   const bgSizeClasses = {
     sm: 'w-10 h-10',
     md: 'w-12 h-12',
     lg: 'w-16 h-16',
-    xl: 'w-24 h-24'
+    xl: 'w-20 h-20'
   };
   
   const bgSizeClass = withBackground ? bgSizeClasses[size] : '';
   
-  // Add a container class for better styling
+  // Container class with proper centering and fixed dimensions
   const containerClass = `flex items-center justify-center ${
-    withBackground ? `${bgSizeClass} ${bgColor} rounded-lg p-2` : ''
+    withBackground ? `${bgSizeClass} ${bgColor} rounded-lg` : ''
   } ${className}`;
   
   // If no icon is found, use a default icon
