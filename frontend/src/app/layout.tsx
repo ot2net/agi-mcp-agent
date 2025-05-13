@@ -42,6 +42,10 @@ export default function RootLayout({
                           className="inline-flex items-center px-1 pt-1 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
                       Environments
                     </Link>
+                    <Link href="/workflow"
+                          className="inline-flex items-center px-1 pt-1 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                      Workflows
+                    </Link>
                   </div>
                 </div>
                 <div className="flex items-center">
