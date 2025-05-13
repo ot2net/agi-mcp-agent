@@ -514,7 +514,7 @@ export function CreateModelForm() {
                 required
                 value={formData.provider_id.toString()}
                 onChange={handleChange}
-                className="block w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-12 pr-4 py-3 text-lg text-left shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-16 pr-12 py-3 text-lg text-left shadow-sm focus:border-blue-500 focus:ring-blue-500 appearance-none"
               >
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id.toString()}>
@@ -523,7 +523,12 @@ export function CreateModelForm() {
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <ModelIcon type={selectedProviderType} size="md" withBackground={true} />
+                <div className="flex items-center justify-center w-10 h-10 overflow-hidden">
+                  <ModelIcon type={selectedProviderType} size="md" withBackground={true} />
+                </div>
+              </div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <HiOutlineChevronDown className="h-5 w-5 text-gray-400" />
               </div>
             </div>
           </div>
@@ -568,7 +573,7 @@ export function CreateModelForm() {
             {Object.entries(capabilityColors).map(([capability, config]) => (
               <div 
                 key={capability}
-                className={`flex items-center rounded-lg border ${
+                className={`flex items-center justify-start rounded-lg border ${
                   formData.capability === capability
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10'
                     : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
