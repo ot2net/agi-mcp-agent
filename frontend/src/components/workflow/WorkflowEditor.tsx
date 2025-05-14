@@ -23,7 +23,7 @@ import ReactFlow, {
   getBezierPath
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { HiOutlineLightningBolt, HiOutlineDatabase, HiOutlineCode, HiLink, HiTrash } from 'react-icons/hi';
+import { HiOutlineLightningBolt, HiOutlineDatabase, HiOutlineCode, HiTrash, HiPencil } from 'react-icons/hi';
 import { Button } from '@/components/base/Button';
 import { Input } from '@/components/base/Input';
 import { Select } from '@/components/base/Select';
@@ -39,7 +39,7 @@ const CustomEdge = ({ id, source, target, sourceX, sourceY, targetX, targetY, so
     targetX,
     targetY,
     targetPosition,
-    curvature: 0.25,
+    curvature: 0.3,
   });
 
   return (
@@ -48,17 +48,17 @@ const CustomEdge = ({ id, source, target, sourceX, sourceY, targetX, targetY, so
         id={id}
         className="react-flow__edge-path-bg"
         d={edgePath}
-        strokeWidth={style.strokeWidth as number + 2 || 3}
-        stroke="rgba(255, 255, 255, 0.5)"
+        strokeWidth={(style.strokeWidth as number || 2) + 2}
+        stroke="rgba(255, 255, 255, 0.8)"
         fill="none"
       />
       <path
         id={id}
         className="react-flow__edge-path"
         d={edgePath}
-        strokeWidth={style.strokeWidth as number || 1}
+        strokeWidth={style.strokeWidth as number || 2}
         stroke={style.stroke as string || '#3B82F6'}
-        strokeOpacity={style.strokeOpacity as number || 0.75}
+        strokeOpacity={style.strokeOpacity as number || 0.85}
         fill="none"
         strokeDasharray={style.strokeDasharray as string || ''}
         markerEnd={markerEnd}
@@ -67,13 +67,13 @@ const CustomEdge = ({ id, source, target, sourceX, sourceY, targetX, targetY, so
         id={id + '-animation'}
         className="react-flow__edge-path-flow"
         d={edgePath}
-        strokeWidth={(style.strokeWidth as number || 1) - 0.3}
+        strokeWidth={(style.strokeWidth as number || 2) - 0.5}
         stroke={style.stroke as string || '#3B82F6'}
         fill="none"
-        strokeDasharray="5 10"
-        strokeOpacity={0.8}
+        strokeDasharray="4 8"
+        strokeOpacity={0.7}
         style={{
-          animation: 'flowAnimation 30s linear infinite',
+          animation: 'flowAnimation 12s linear infinite',
         }}
       />
     </>
@@ -94,53 +94,45 @@ const NODE_TYPES = {
 const handleStyle = {
   background: '#fff',
   border: '2px solid #3B82F6',
-  width: 10,
-  height: 10,
+  width: 7,
+  height: 7,
   borderRadius: '50%',
   zIndex: 10,
-  transition: 'transform 0.2s ease, opacity 0.2s ease',
-  opacity: 0.8,
-};
-
-const handleStyleHover = {
-  ...handleStyle,
-  transform: 'scale(1.3)',
-  opacity: 1,
+  transition: 'all 0.2s ease',
+  opacity: 0.6,
 };
 
 const EnvironmentNode = ({ data, selected }: NodeProps) => {
   return (
-    <div className={`rounded-lg shadow-md overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[240px]`}>
+    <div className={`rounded-md shadow-sm overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[180px] transition-all`}>
       <Handle 
         type="target" 
         position={Position.Top} 
         style={{ ...handleStyle, borderColor: '#10B981' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
         isConnectableStart={false} 
       />
-      <div className="bg-green-50 dark:bg-green-900/20 px-4 py-3 border-b border-green-100 dark:border-green-800/50">
-        <div className="flex items-center">
-          <div className="p-2 rounded-lg bg-green-100 dark:bg-green-800/50 mr-3">
-            <HiOutlineDatabase className="text-green-600 dark:text-green-400 w-5 h-5" />
-          </div>
-          <div className="font-bold text-gray-800 dark:text-white">{data.label}</div>
+      <div className="px-3 py-1.5 border-b border-gray-100 dark:border-gray-700 flex items-center bg-green-50 dark:bg-green-900/10">
+        <div className="p-1 rounded-md bg-green-100 dark:bg-green-900/20 mr-2">
+          <HiOutlineDatabase className="text-green-600 dark:text-green-400 w-3.5 h-3.5" />
         </div>
+        <div className="font-medium text-xs text-gray-800 dark:text-white truncate">{data.label}</div>
       </div>
-      <div className="p-3">
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
-          <div className="font-medium w-24">Environment:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">{data.environment || 'Not Set'}</div>
+      <div className="p-2 text-xs">
+        <div className="flex items-center text-gray-500 dark:text-gray-400 mb-1">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">Environment:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.environment || 'Not Set'}</div>
         </div>
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-          <div className="font-medium w-24">Operation:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">{data.action?.operation || 'Not Set'}</div>
+        <div className="flex items-center text-gray-500 dark:text-gray-400">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">Operation:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.action?.operation || 'Not Set'}</div>
         </div>
       </div>
       <Handle 
         type="source" 
         position={Position.Bottom} 
         style={{ ...handleStyle, borderColor: '#10B981' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
       />
     </div>
   );
@@ -148,37 +140,35 @@ const EnvironmentNode = ({ data, selected }: NodeProps) => {
 
 const AgentNode = ({ data, selected }: NodeProps) => {
   return (
-    <div className={`rounded-lg shadow-md overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[240px]`}>
+    <div className={`rounded-md shadow-sm overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[180px] transition-all`}>
       <Handle 
         type="target" 
         position={Position.Top} 
         style={{ ...handleStyle, borderColor: '#3B82F6' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
         isConnectableStart={false}
       />
-      <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-3 border-b border-blue-100 dark:border-blue-800/50">
-        <div className="flex items-center">
-          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-800/50 mr-3">
-            <HiOutlineLightningBolt className="text-blue-600 dark:text-blue-400 w-5 h-5" />
-          </div>
-          <div className="font-bold text-gray-800 dark:text-white">{data.label}</div>
+      <div className="px-3 py-1.5 border-b border-gray-100 dark:border-gray-700 flex items-center bg-blue-50 dark:bg-blue-900/10">
+        <div className="p-1 rounded-md bg-blue-100 dark:bg-blue-900/20 mr-2">
+          <HiOutlineLightningBolt className="text-blue-600 dark:text-blue-400 w-3.5 h-3.5" />
         </div>
+        <div className="font-medium text-xs text-gray-800 dark:text-white truncate">{data.label}</div>
       </div>
-      <div className="p-3">
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
-          <div className="font-medium w-24">Agent:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">{data.agent || 'Not Set'}</div>
+      <div className="p-2 text-xs">
+        <div className="flex items-center text-gray-500 dark:text-gray-400 mb-1">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">Agent:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.agent || 'Not Set'}</div>
         </div>
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-          <div className="font-medium w-24">Task:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">{data.description || 'Not Set'}</div>
+        <div className="flex items-center text-gray-500 dark:text-gray-400">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">Task:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.description || 'Not Set'}</div>
         </div>
       </div>
       <Handle 
         type="source" 
         position={Position.Bottom} 
         style={{ ...handleStyle, borderColor: '#3B82F6' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
       />
     </div>
   );
@@ -186,56 +176,52 @@ const AgentNode = ({ data, selected }: NodeProps) => {
 
 const ConditionalNode = ({ data, selected }: NodeProps) => {
   return (
-    <div className={`rounded-lg shadow-md ${selected ? 'ring-2 ring-blue-500' : ''} bg-white dark:bg-gray-800 min-w-[240px]`}>
+    <div className={`rounded-md shadow-sm ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[180px] transition-all overflow-hidden`}>
       <Handle 
         type="target" 
         position={Position.Top} 
         style={{ ...handleStyle, borderColor: '#F59E0B' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
         isConnectableStart={false}
       />
       
-      {/* Diamond header */}
-      <div className="flex justify-center -mt-3 mb-2">
-        <div className="h-16 w-16 bg-yellow-100 dark:bg-yellow-800/30 rotate-45 flex items-center justify-center shadow-md border border-yellow-200 dark:border-yellow-700">
-          <div className="-rotate-45 flex flex-col items-center">
-            <HiOutlineCode className="text-yellow-600 dark:text-yellow-400 w-6 h-6 mb-1" />
+      <div className="px-3 py-1.5 border-b border-gray-100 dark:border-gray-700 flex items-center bg-yellow-50 dark:bg-yellow-900/10">
+        <div className="flex items-center">
+          <div className="p-1 rounded-md bg-yellow-100 dark:bg-yellow-900/20 mr-2 rotate-45 w-5 h-5 flex items-center justify-center">
+            <HiOutlineCode className="text-yellow-600 dark:text-yellow-400 w-3 h-3 -rotate-45" />
           </div>
+          <div className="font-medium text-xs text-gray-800 dark:text-white truncate">{data.label}</div>
         </div>
       </div>
       
-      {/* Content */}
-      <div className="px-4 pb-4 pt-1">
-        <div className="font-medium text-center text-gray-800 dark:text-white mb-2">{data.label}</div>
-        <div className="text-xs text-gray-500 dark:text-gray-400 mb-3 text-center border border-dashed border-gray-200 dark:border-gray-700 p-2 rounded bg-gray-50 dark:bg-gray-900/50">
+      <div className="p-2 text-xs">
+        <div className="text-gray-500 dark:text-gray-400 mb-1.5 border border-dashed border-gray-200 dark:border-gray-700 p-1 rounded bg-gray-50 dark:bg-gray-900/30 text-center text-xs">
           {data.condition || 'Set condition expression...'}
         </div>
         
-        {/* Branches */}
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          <div className="text-xs px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-center font-medium">
+        <div className="grid grid-cols-2 gap-1">
+          <div className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded text-center">
             True
           </div>
-          <div className="text-xs px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-center font-medium">
+          <div className="text-[10px] px-1.5 py-0.5 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-center">
             False
           </div>
         </div>
       </div>
       
-      {/* Multiple output handles for true/false paths */}
       <Handle 
         type="source" 
         position={Position.Bottom} 
         id="true" 
         style={{ ...handleStyle, borderColor: '#22C55E', left: '30%' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
       />
       <Handle 
         type="source" 
         position={Position.Bottom} 
         id="false" 
         style={{ ...handleStyle, borderColor: '#EF4444', left: '70%' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
       />
     </div>
   );
@@ -243,37 +229,35 @@ const ConditionalNode = ({ data, selected }: NodeProps) => {
 
 const MCPAgentNode = ({ data, selected }: NodeProps) => {
   return (
-    <div className={`rounded-lg shadow-md overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[240px]`}>
+    <div className={`rounded-md shadow-sm overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[180px] transition-all`}>
       <Handle 
         type="target" 
         position={Position.Top} 
         style={{ ...handleStyle, borderColor: '#8B5CF6' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
         isConnectableStart={false}
       />
-      <div className="bg-purple-50 dark:bg-purple-900/20 px-4 py-3 border-b border-purple-100 dark:border-purple-800/50">
-        <div className="flex items-center">
-          <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-800/50 mr-3">
-            <HiOutlineLightningBolt className="text-purple-600 dark:text-purple-400 w-5 h-5" />
-          </div>
-          <div className="font-bold text-gray-800 dark:text-white">{data.label}</div>
+      <div className="px-3 py-1.5 border-b border-gray-100 dark:border-gray-700 flex items-center bg-purple-50 dark:bg-purple-900/10">
+        <div className="p-1 rounded-md bg-purple-100 dark:bg-purple-900/20 mr-2">
+          <HiOutlineLightningBolt className="text-purple-600 dark:text-purple-400 w-3.5 h-3.5" />
         </div>
+        <div className="font-medium text-xs text-gray-800 dark:text-white truncate">{data.label}</div>
       </div>
-      <div className="p-3">
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
-          <div className="font-medium w-24">MCP Server:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">{data.mcp_server || 'Not Set'}</div>
+      <div className="p-2 text-xs">
+        <div className="flex items-center text-gray-500 dark:text-gray-400 mb-1">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">MCP Server:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.mcp_server || 'Not Set'}</div>
         </div>
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-          <div className="font-medium w-24">Tool:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">{data.tool || 'Not Set'}</div>
+        <div className="flex items-center text-gray-500 dark:text-gray-400">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">Tool:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.tool || 'Not Set'}</div>
         </div>
       </div>
       <Handle 
         type="source" 
         position={Position.Bottom} 
         style={{ ...handleStyle, borderColor: '#8B5CF6' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
       />
     </div>
   );
@@ -281,37 +265,35 @@ const MCPAgentNode = ({ data, selected }: NodeProps) => {
 
 const BrowserActionNode = ({ data, selected }: NodeProps) => {
   return (
-    <div className={`rounded-lg shadow-md overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[240px]`}>
+    <div className={`rounded-md shadow-sm overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'border border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800 min-w-[180px] transition-all`}>
       <Handle 
         type="target" 
         position={Position.Top} 
         style={{ ...handleStyle, borderColor: '#6366F1' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
         isConnectableStart={false}
       />
-      <div className="bg-indigo-50 dark:bg-indigo-900/20 px-4 py-3 border-b border-indigo-100 dark:border-indigo-800/50">
-        <div className="flex items-center">
-          <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-800/50 mr-3">
-            <HiOutlineDatabase className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
-          </div>
-          <div className="font-bold text-gray-800 dark:text-white">{data.label}</div>
+      <div className="px-3 py-1.5 border-b border-gray-100 dark:border-gray-700 flex items-center bg-indigo-50 dark:bg-indigo-900/10">
+        <div className="p-1 rounded-md bg-indigo-100 dark:bg-indigo-900/20 mr-2">
+          <HiOutlineDatabase className="text-indigo-600 dark:text-indigo-400 w-3.5 h-3.5" />
         </div>
+        <div className="font-medium text-xs text-gray-800 dark:text-white truncate">{data.label}</div>
       </div>
-      <div className="p-3">
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
-          <div className="font-medium w-24">Action:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded">{data.browser_action || 'Not Set'}</div>
+      <div className="p-2 text-xs">
+        <div className="flex items-center text-gray-500 dark:text-gray-400 mb-1">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">Action:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.browser_action || 'Not Set'}</div>
         </div>
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-          <div className="font-medium w-24">URL:</div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded overflow-hidden text-ellipsis">{data.url || 'Not Set'}</div>
+        <div className="flex items-center text-gray-500 dark:text-gray-400">
+          <div className="font-medium w-16 text-gray-600 dark:text-gray-300 text-xs">URL:</div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 px-1.5 py-0.5 rounded truncate text-xs">{data.url || 'Not Set'}</div>
         </div>
       </div>
       <Handle 
         type="source" 
         position={Position.Bottom} 
         style={{ ...handleStyle, borderColor: '#6366F1' }} 
-        className="!w-auto !h-auto !bg-transparent !border-0 hover:!transform hover:!scale-125"
+        className="connection-handle !w-auto !h-auto !bg-transparent !border-0"
       />
     </div>
   );
@@ -330,14 +312,43 @@ interface WorkflowEditorProps {
   initialWorkflow?: any;
 }
 
+// Empty state component
+const EmptyWorkflowState = ({ onAddNode }: { onAddNode: (type: string) => void }) => {
+  return (
+    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-white dark:bg-gray-800 p-5 rounded-lg shadow-sm border border-blue-100 dark:border-blue-900/30 z-10 w-80">
+      <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-full mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+      </div>
+      <h3 className="text-base font-medium mb-1.5 text-center">Start Building Your Workflow</h3>
+      <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-4">
+        Add nodes from the left panel and connect them to create a workflow.
+      </p>
+      <div className="flex space-x-2">
+        <button
+          className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-xs font-medium transition-colors"
+          onClick={() => onAddNode('agent')}
+        >
+          Add Agent
+        </button>
+        <button
+          className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-md text-xs font-medium transition-colors"
+          onClick={() => onAddNode('environment')}
+        >
+          Add Environment
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function WorkflowEditor({ workflowId, initialWorkflow }: WorkflowEditorProps) {
   // Node and edge states
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  
-  // Connection mode
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>(ConnectionMode.Loose);
   
   // Environment and agent lists
   const [environments, setEnvironments] = useState<any[]>([]);
@@ -350,9 +361,21 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
   // Node property form state
   const [nodeConfig, setNodeConfig] = useState<any>({});
 
-  // Editor modes
-  const [isConnectionMode, setIsConnectionMode] = useState(false);
-  const [isDeletionMode, setIsDeletionMode] = useState(false);
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    nodeId?: string;
+    edgeId?: string;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0
+  });
+
+  // Reference to the ReactFlow container
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Load environment and agent data
   useEffect(() => {
@@ -558,24 +581,123 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
     return newNode;
   };
 
-  // Add flow animation style to head
-  useEffect(() => {
-    const styleEl = document.createElement('style');
-    styleEl.innerHTML = `
-      @keyframes flowAnimation {
-        0% {
-          stroke-dashoffset: 100;
-        }
-        100% {
-          stroke-dashoffset: 0;
-        }
-      }
-    `;
-    document.head.appendChild(styleEl);
-    return () => {
-      document.head.removeChild(styleEl);
-    };
-  }, []);
+  // Delete a node
+  const deleteNode = (nodeId: string) => {
+    // Remove connected edges
+    setEdges(edges => edges.filter(e => e.source !== nodeId && e.target !== nodeId));
+    
+    // Remove the node
+    setNodes(nodes => nodes.filter(n => n.id !== nodeId));
+    
+    // Clear selection if the selected node is deleted
+    if (selectedNode && selectedNode.id === nodeId) {
+      setSelectedNode(null);
+    }
+    
+    // Hide context menu
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  };
+
+  // Delete an edge
+  const deleteEdge = (edgeId: string) => {
+    setEdges(edges => edges.filter(e => e.id !== edgeId));
+    
+    // Hide context menu
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  };
+
+  // Handle right click on node
+  const onNodeContextMenu = (event: React.MouseEvent, node: Node) => {
+    // Prevent default context menu
+    event.preventDefault();
+    
+    // Get viewport bounds
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Get ReactFlow container bounds
+    const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+    
+    // Calculate position, ensuring menu stays in viewport
+    let x = event.clientX;
+    let y = event.clientY;
+    
+    // Adjust position based on container position if available
+    if (reactFlowBounds) {
+      x = x - reactFlowBounds.left;
+      y = y - reactFlowBounds.top;
+    }
+    
+    // Estimate menu dimensions
+    const menuWidth = 150;
+    const menuHeight = 100;
+    
+    // Adjust if would render outside viewport
+    if (reactFlowBounds && x + menuWidth > reactFlowBounds.width) {
+      x = reactFlowBounds.width - menuWidth - 10;
+    }
+    
+    if (reactFlowBounds && y + menuHeight > reactFlowBounds.height) {
+      y = reactFlowBounds.height - menuHeight - 10;
+    }
+    
+    // Show our custom context menu
+    setContextMenu({
+      visible: true,
+      x,
+      y,
+      nodeId: node.id
+    });
+    
+    // Select the node
+    setSelectedNode(node);
+    setNodeConfig(node.data);
+  };
+
+  // Handle right click on edge
+  const onEdgeContextMenu = (event: React.MouseEvent, edge: Edge) => {
+    // Prevent default context menu
+    event.preventDefault();
+    
+    // Get ReactFlow container bounds
+    const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+    
+    // Calculate position, ensuring menu stays in viewport
+    let x = event.clientX;
+    let y = event.clientY;
+    
+    // Adjust position based on container position if available
+    if (reactFlowBounds) {
+      x = x - reactFlowBounds.left;
+      y = y - reactFlowBounds.top;
+    }
+    
+    // Estimate menu dimensions
+    const menuWidth = 150;
+    const menuHeight = 50;
+    
+    // Adjust if would render outside viewport
+    if (reactFlowBounds && x + menuWidth > reactFlowBounds.width) {
+      x = reactFlowBounds.width - menuWidth - 10;
+    }
+    
+    if (reactFlowBounds && y + menuHeight > reactFlowBounds.height) {
+      y = reactFlowBounds.height - menuHeight - 10;
+    }
+    
+    // Show our custom context menu
+    setContextMenu({
+      visible: true,
+      x,
+      y,
+      edgeId: edge.id
+    });
+  };
+
+  // Handle click away to hide context menu
+  const onPaneClick = () => {
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  };
 
   // When connection changes
   const onConnect = useCallback((params: Connection) => {
@@ -586,40 +708,22 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
       style: { 
         stroke: '#3B82F6', 
         strokeWidth: 2,
-        strokeOpacity: 0.75
+        strokeOpacity: 0.85
       },
       markerEnd: { 
         type: MarkerType.ArrowClosed,
-        width: 20,
-        height: 20,
+        width: 12,
+        height: 12,
         color: '#3B82F6'
       }
     };
     setEdges(eds => addEdge(newEdge, eds));
   }, []);
 
-  // Delete an edge
+  // Delete an edge via click (legacy method, kept for convenience)
   const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
-    if (isDeletionMode) {
-      setEdges(edges => edges.filter(e => e.id !== edge.id));
-    }
-  }, [isDeletionMode]);
-
-  // Delete a node
-  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
-    if (isDeletionMode) {
-      // Remove connected edges
-      setEdges(edges => edges.filter(e => e.source !== node.id && e.target !== node.id));
-      
-      // Remove the node
-      setNodes(nodes => nodes.filter(n => n.id !== node.id));
-      
-      // Clear selection if the selected node is deleted
-      if (selectedNode && selectedNode.id === node.id) {
-        setSelectedNode(null);
-      }
-    }
-  }, [isDeletionMode, selectedNode]);
+    deleteEdge(edge.id);
+  }, []);
 
   // Node selection handler
   const onNodeClick = (_: any, node: Node) => {
@@ -1007,45 +1111,128 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
     custom: CustomEdge,
   };
 
+  // Handle document clicks to close context menu
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      // Close context menu when clicking outside
+      if (contextMenu.visible) {
+        // Check if click target is not part of the context menu
+        const contextMenuElement = document.querySelector('.context-menu');
+        if (contextMenuElement && !contextMenuElement.contains(e.target as Element)) {
+          setContextMenu({ visible: false, x: 0, y: 0 });
+        }
+      }
+    };
+
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [contextMenu.visible]);
+
+  // Add flow animation style to head
+  useEffect(() => {
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+      @keyframes flowAnimation {
+        0% {
+          stroke-dashoffset: 24;
+        }
+        100% {
+          stroke-dashoffset: 0;
+        }
+      }
+      
+      /* Hover effect for connection handles */
+      .react-flow__node:hover .connection-handle {
+        opacity: 1;
+        transform: scale(1.2);
+      }
+      
+      /* Default state for connection handles */
+      .connection-handle {
+        opacity: 0.4;
+      }
+      
+      /* Node selection style */
+      .react-flow__node.selected {
+        box-shadow: 0 0 0 2px #3B82F6;
+      }
+
+      /* Connection line animation */
+      .react-flow__connection-path {
+        stroke: #3B82F6;
+        stroke-width: 2;
+        stroke-dasharray: 5,5;
+        animation: dashdraw 0.5s linear infinite;
+      }
+      
+      @keyframes dashdraw {
+        from {
+          stroke-dashoffset: 10;
+        }
+      }
+      
+      /* Node style adjustments */
+      .react-flow__node {
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+      }
+      
+      .react-flow__node:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+      }
+      
+      /* Context menu styles */
+      .context-menu {
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        background: white;
+        z-index: 1000;
+        min-width: 120px;
+        font-size: 12px;
+      }
+      
+      .context-menu-item {
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      
+      .context-menu-item:hover {
+        background: #f5f5f5;
+      }
+      
+      .context-menu-item svg {
+        margin-right: 8px;
+      }
+      
+      .context-menu-divider {
+        height: 1px;
+        background: #e5e7eb;
+        margin: 4px 0;
+      }
+    `;
+    document.head.appendChild(styleEl);
+    return () => {
+      document.head.removeChild(styleEl);
+    };
+  }, []);
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50 dark:bg-gray-900">
       {/* Header area */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+            <h1 className="text-base font-semibold text-gray-900 dark:text-white">
               {workflowName || 'New Workflow'}
             </h1>
           </div>
           <div className="flex items-center space-x-3">
-            {/* Connection mode toggle */}
-            <Button 
-              onClick={() => {
-                setIsConnectionMode(!isConnectionMode);
-                setIsDeletionMode(false);
-              }}
-              size="sm"
-              variant={isConnectionMode ? "default" : "outline"}
-              className="flex items-center space-x-1.5"
-            >
-              <HiLink className="w-4 h-4" />
-              <span>Connect Mode</span>
-            </Button>
-            
-            {/* Deletion mode toggle */}
-            <Button 
-              onClick={() => {
-                setIsDeletionMode(!isDeletionMode);
-                setIsConnectionMode(false);
-              }}
-              size="sm"
-              variant={isDeletionMode ? "destructive" : "outline"}
-              className="flex items-center space-x-1.5"
-            >
-              <HiTrash className="w-4 h-4" />
-              <span>Delete Mode</span>
-            </Button>
-            
             <Button 
               onClick={saveWorkflow}
               className="px-4"
@@ -1086,7 +1273,10 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
                       onClick={() => addNode('environment', selectedNode)}
                       title="Add & connect to selected node"
                     >
-                      <HiLink className="w-3.5 h-3.5" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -1108,7 +1298,10 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
                       onClick={() => addNode('agent', selectedNode)}
                       title="Add & connect to selected node"
                     >
-                      <HiLink className="w-3.5 h-3.5" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -1132,7 +1325,10 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
                       onClick={() => addNode('conditional', selectedNode)}
                       title="Add & connect to selected node"
                     >
-                      <HiLink className="w-3.5 h-3.5" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -1154,7 +1350,10 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
                       onClick={() => addNode('mcp_agent', selectedNode)}
                       title="Add & connect to selected node"
                     >
-                      <HiLink className="w-3.5 h-3.5" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -1176,7 +1375,10 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
                       onClick={() => addNode('browser_action', selectedNode)}
                       title="Add & connect to selected node"
                     >
-                      <HiLink className="w-3.5 h-3.5" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -1219,53 +1421,9 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
         </div>
         
         {/* Center edit area */}
-        <div className="flex-1 relative bg-gray-100 dark:bg-gray-950">
-          {isConnectionMode && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 p-3 rounded-lg z-10 shadow-md border border-blue-200 dark:border-blue-800">
-              <div className="text-center text-sm text-blue-600 dark:text-blue-400 font-medium mb-2">
-                Connection Mode
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                Click and drag between nodes to create connections
-              </div>
-            </div>
-          )}
-          
-          {isDeletionMode && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 p-3 rounded-lg z-10 shadow-md border border-red-200 dark:border-red-800">
-              <div className="text-center text-sm text-red-600 dark:text-red-400 font-medium mb-2">
-                Deletion Mode
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                Double-click on nodes or click on edges to delete them
-              </div>
-            </div>
-          )}
-          
+        <div className="flex-1 relative bg-gray-100 dark:bg-gray-950" ref={reactFlowWrapper}>
           {nodes.length === 0 && (
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-blue-100 dark:border-blue-900/30 z-10 w-96">
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-full mb-4">
-                <HiOutlineDatabase className="w-8 h-8 text-blue-500" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-center">Create Your Workflow</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-5">
-                Start by adding components from the left sidebar. Drag and connect them to create your workflow.
-              </p>
-              <div className="flex space-x-3">
-                <button
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  onClick={() => addNode('environment')}
-                >
-                  Add Environment
-                </button>
-                <button
-                  className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  onClick={() => addNode('agent')}
-                >
-                  Add Agent
-                </button>
-              </div>
-            </div>
+            <EmptyWorkflowState onAddNode={addNode} />
           )}
           
           <ReactFlow
@@ -1275,11 +1433,13 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
-            onNodeDoubleClick={onNodeDoubleClick}
+            onNodeContextMenu={onNodeContextMenu}
+            onEdgeContextMenu={onEdgeContextMenu}
             onEdgeClick={onEdgeClick}
+            onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            connectionMode={isConnectionMode ? ConnectionMode.Strict : ConnectionMode.Loose}
+            connectionMode={ConnectionMode.Loose}
             fitView
             fitViewOptions={{ padding: 0.2 }}
             defaultEdgeOptions={{
@@ -1288,12 +1448,12 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
               style: { 
                 stroke: '#3B82F6', 
                 strokeWidth: 2,
-                strokeOpacity: 0.75
+                strokeOpacity: 0.85
               },
               markerEnd: { 
                 type: MarkerType.ArrowClosed,
-                width: 20,
-                height: 20,
+                width: 12,
+                height: 12,
                 color: '#3B82F6'
               }
             }}
@@ -1301,12 +1461,28 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
               stroke: '#3B82F6', 
               strokeWidth: 2, 
               strokeDasharray: '5,5',
-              strokeOpacity: 0.75
+              strokeOpacity: 0.8
             }}
             connectionLineType={ConnectionLineType.SmoothStep}
             snapToGrid={true}
             snapGrid={[10, 10]}
+            proOptions={{ hideAttribution: true }}
+            defaultViewport={{ x: 0, y: 0, zoom: 1.2 }}
+            minZoom={0.5}
+            maxZoom={2}
+            nodesDraggable={true}
+            elementsSelectable={true}
+            nodesConnectable={true}
+            className="bg-[#fafafa] dark:bg-gray-900"
           >
+            <Background 
+              color="#e0e0e0" 
+              gap={16} 
+              size={1}
+              variant={BackgroundVariant.Dots}
+              className="bg-[#fafafa] dark:bg-gray-900"
+            />
+            
             <Controls 
               position="bottom-right" 
               showInteractive={false} 
@@ -1314,9 +1490,12 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
                 background: 'white', 
                 borderRadius: '8px', 
                 border: '1px solid #e5e7eb',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                bottom: '20px',
+                right: '20px'
               }} 
             />
+            
             <MiniMap 
               nodeStrokeWidth={3}
               nodeColor={(node) => {
@@ -1333,49 +1512,75 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
                 background: 'white', 
                 borderRadius: '8px', 
                 border: '1px solid #e5e7eb', 
-                bottom: '120px',
-                right: '10px',
+                bottom: '100px',
+                right: '20px',
+                width: '160px',
+                height: '90px',
                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
               }}
               maskColor="rgba(0, 0, 0, 0.05)"
             />
-            <Background 
-              color="#aaa" 
-              gap={20} 
-              size={1}
-              variant={BackgroundVariant.Dots}
-            />
-            
-            {/* Connection panel */}
-            <Panel position="top-right" className={isConnectionMode ? 'bg-white dark:bg-gray-800 p-3 rounded-lg shadow-md border border-blue-100 dark:border-blue-800' : 'hidden'}>
-              <div className="text-sm font-medium mb-2">Connection Options</div>
-              <div className="flex items-center space-x-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setConnectionMode(ConnectionMode.Strict)}
-                  className={connectionMode === ConnectionMode.Strict ? 'border-blue-500 text-blue-500' : ''}
-                >
-                  Strict
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setConnectionMode(ConnectionMode.Loose)}
-                  className={connectionMode === ConnectionMode.Loose ? 'border-blue-500 text-blue-500' : ''}
-                >
-                  Loose
-                </Button>
-              </div>
-            </Panel>
           </ReactFlow>
+          
+          {/* Context Menu */}
+          {contextMenu.visible && (
+            <div 
+              className="context-menu absolute dark:bg-gray-800 dark:border-gray-700 dark:text-white border border-gray-200 shadow-lg z-50"
+              style={{ 
+                left: `${contextMenu.x}px`, 
+                top: `${contextMenu.y}px`,
+                minWidth: '120px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {contextMenu.nodeId && (
+                <>
+                  <div 
+                    className="context-menu-item text-gray-800 dark:text-gray-200"
+                    onClick={() => {
+                      // Edit node - already in config panel when selected
+                      setContextMenu({ visible: false, x: 0, y: 0 });
+                    }}
+                  >
+                    <HiPencil className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
+                    <span>Edit Node</span>
+                  </div>
+                  <div className="context-menu-divider"></div>
+                  <div 
+                    className="context-menu-item text-red-600 dark:text-red-400"
+                    onClick={() => deleteNode(contextMenu.nodeId!)}
+                  >
+                    <HiTrash className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </div>
+                </>
+              )}
+              
+              {contextMenu.edgeId && (
+                <div 
+                  className="context-menu-item text-red-600 dark:text-red-400"
+                  onClick={() => deleteEdge(contextMenu.edgeId!)}
+                >
+                  <HiTrash className="w-3.5 h-3.5" />
+                  <span>Delete Connection</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         
         {/* Right configuration panel */}
         {selectedNode && (
           <div className="w-72 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-0">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
               <h3 className="font-medium">Node Configuration</h3>
+              <button 
+                onClick={() => deleteNode(selectedNode.id)}
+                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                title="Delete node"
+              >
+                <HiTrash className="w-4 h-4" />
+              </button>
             </div>
             <div className="p-4">
               {renderConfigPanel()}
