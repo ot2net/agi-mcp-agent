@@ -8,7 +8,6 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
-  Panel,
   MarkerType,
   Node,
   Edge,
@@ -27,7 +26,6 @@ import { HiOutlineLightningBolt, HiOutlineDatabase, HiOutlineCode, HiTrash, HiPe
 import { Button } from '@/components/base/Button';
 import { Input } from '@/components/base/Input';
 import { Select } from '@/components/base/Select';
-import { Card } from '@/components/base/Card';
 import { getEnvironments, getAgents } from '@/api/workflow';
 
 // Custom edge component with animated flow
