@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Google Search Assistant</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 16px;
+      width: 320px;
+      color: #202124;
+      background-color: #ffffff;
+    }
+    
+    .dark-mode body {
+      color: #e8eaed;
+      background-color: #202124;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #f1f3f4;
+      padding-bottom: 12px;
+    }
+    
+    .dark-mode .header {
+      border-bottom: 1px solid #3c4043;
+    }
+    
+    .logo {
+      width: 32px;
+      height: 32px;
+      margin-right: 12px;
+    }
+    
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    
+    .status {
+      margin-bottom: 16px;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-connected {
+      background-color: #34a853;
+    }
+    
+    .status-disconnected {
+      background-color: #ea4335;
+    }
+    
+    .field {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    .dark-mode input[type="text"] {
+      background-color: #303134;
+      border-color: #5f6368;
+      color: #e8eaed;
+    }
+    
+    .buttons {
+      display: flex;
+      justify-content: flex-end;
+    }
+    
+    button {
+      background-color: #6b46c1;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    button:hover {
+      background-color: #553c9a;
+    }
+    
+    button:disabled {
+      background-color: #9ca3af;
+      cursor: not-allowed;
+    }
+    
+    .stats {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #f1f3f4;
+      font-size: 14px;
+    }
+    
+    .dark-mode .stats {
+      border-top: 1px solid #3c4043;
+    }
+    
+    .stats-title {
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    
+    .stats-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .hint {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 4px;
+    }
+    
+    .dark-mode .hint {
+      color: #9aa0a6;
+    }
+    
+    .error {
+      color: #d93025;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    
+    .dark-mode .error {
+      color: #f28b82;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon48.png" alt="Logo" class="logo">
+    <h1>MCP Google Search Assistant</h1>
+  </div>
+  
+  <div class="status">
+    <span class="status-indicator status-disconnected" id="status-indicator"></span>
+    <span id="status-text">Disconnected</span>
+  </div>
+  
+  <div class="field">
+    <label for="mcp-server">MCP Server URL</label>
+    <input type="text" id="mcp-server" placeholder="ws://localhost:8080/ws">
+    <div class="hint">Enter the WebSocket URL of your MCP server</div>
+    <div class="error" id="server-error" style="display: none;"></div>
+  </div>
+  
+  <div class="buttons">
+    <button id="save-button">Save & Connect</button>
+  </div>
+  
+  <div class="stats" id="stats-section" style="display: none;">
+    <div class="stats-title">Statistics</div>
+    <div class="stats-item">
+      <span>Last search query:</span>
+      <span id="last-query">-</span>
+    </div>
+    <div class="stats-item">
+      <span>Recommendations made:</span>
+      <span id="recommendations-count">0</span>
+    </div>
+    <div class="stats-item">
+      <span>Connection status:</span>
+      <span id="connection-status">-</span>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html> 

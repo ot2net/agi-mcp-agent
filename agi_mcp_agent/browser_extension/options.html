@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Google Search Assistant - Options</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      color: #202124;
+      background-color: #f8f9fa;
+      line-height: 1.5;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f1f3f4;
+    }
+    
+    .logo {
+      width: 48px;
+      height: 48px;
+      margin-right: 16px;
+    }
+    
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 500;
+      color: #202124;
+    }
+    
+    .section {
+      margin-bottom: 24px;
+    }
+    
+    h2 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: #202124;
+    }
+    
+    .field {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    .hint {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 4px;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .checkbox-container input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    
+    .buttons {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+    
+    button {
+      background-color: #6b46c1;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    button:hover {
+      background-color: #553c9a;
+    }
+    
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .status.success {
+      background-color: #e6f4ea;
+      color: #137333;
+      display: block;
+    }
+    
+    .status.error {
+      background-color: #fce8e6;
+      color: #c5221f;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icons/icon48.png" alt="Logo" class="logo">
+      <h1>MCP Google Search Assistant Options</h1>
+    </div>
+    
+    <div class="section">
+      <h2>Connection Settings</h2>
+      
+      <div class="field">
+        <label for="mcp-server">MCP Server URL</label>
+        <input type="text" id="mcp-server" placeholder="ws://localhost:8080/ws">
+        <div class="hint">Enter the WebSocket URL of your MCP server</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>Search Preferences</h2>
+      
+      <div class="field">
+        <label for="recommendations-count">Number of Recommendations</label>
+        <select id="recommendations-count">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="5">5</option>
+        </select>
+        <div class="hint">How many recommendations to show for each search</div>
+      </div>
+      
+      <div class="field">
+        <label>Analysis Criteria</label>
+        <div class="checkbox-container">
+          <input type="checkbox" id="criteria-relevance" checked>
+          <label for="criteria-relevance">Relevance</label>
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="criteria-authority" checked>
+          <label for="criteria-authority">Authority</label>
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="criteria-recency" checked>
+          <label for="criteria-recency">Recency</label>
+        </div>
+        <div class="hint">Select which criteria to use when analyzing search results</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>UI Settings</h2>
+      
+      <div class="field">
+        <div class="checkbox-container">
+          <input type="checkbox" id="highlight-results" checked>
+          <label for="highlight-results">Highlight recommended results in search</label>
+        </div>
+      </div>
+      
+      <div class="field">
+        <div class="checkbox-container">
+          <input type="checkbox" id="show-badges" checked>
+          <label for="show-badges">Show recommendation badges</label>
+        </div>
+      </div>
+    </div>
+    
+    <div id="status" class="status"></div>
+    
+    <div class="buttons">
+      <button id="save-button">Save Options</button>
+    </div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html> 

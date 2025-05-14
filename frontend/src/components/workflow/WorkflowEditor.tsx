@@ -28,7 +28,9 @@ const NODE_TYPES = {
   environment: 'environment_action',
   agent: 'agent_task',
   conditional: 'conditional',
-  parallel: 'parallel'
+  parallel: 'parallel',
+  mcp_agent: 'mcp_agent',
+  browser_action: 'browser_action'
 };
 
 // Custom node components
@@ -80,10 +82,42 @@ const ConditionalNode = ({ data, selected }: NodeProps) => {
   );
 };
 
+const MCPAgentNode = ({ data, selected }: NodeProps) => {
+  return (
+    <div className={`p-4 rounded-lg shadow-md border-2 ${selected ? 'border-blue-500' : 'border-gray-300'} bg-white dark:bg-gray-800 min-w-64`}>
+      <div className="flex items-center mb-2">
+        <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20 mr-3">
+          <HiOutlineLightningBolt className="text-purple-600 dark:text-purple-400 w-5 h-5" />
+        </div>
+        <div className="font-bold text-gray-800 dark:text-white">{data.label}</div>
+      </div>
+      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">MCP Server: {data.mcp_server || 'Not Set'}</div>
+      <div className="text-xs text-gray-500 dark:text-gray-400">Tool: {data.tool || 'Not Set'}</div>
+    </div>
+  );
+};
+
+const BrowserActionNode = ({ data, selected }: NodeProps) => {
+  return (
+    <div className={`p-4 rounded-lg shadow-md border-2 ${selected ? 'border-blue-500' : 'border-gray-300'} bg-white dark:bg-gray-800 min-w-64`}>
+      <div className="flex items-center mb-2">
+        <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/20 mr-3">
+          <HiOutlineDatabase className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+        </div>
+        <div className="font-bold text-gray-800 dark:text-white">{data.label}</div>
+      </div>
+      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Action: {data.browser_action || 'Not Set'}</div>
+      <div className="text-xs text-gray-500 dark:text-gray-400">URL: {data.url?.substring(0, 30) || 'Not Set'}{data.url?.length > 30 ? '...' : ''}</div>
+    </div>
+  );
+};
+
 const nodeTypes = {
   environment: EnvironmentNode,
   agent: AgentNode,
-  conditional: ConditionalNode
+  conditional: ConditionalNode,
+  mcp_agent: MCPAgentNode,
+  browser_action: BrowserActionNode
 };
 
 interface WorkflowEditorProps {
@@ -159,6 +193,10 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
         nodeType = 'agent';
       } else if (step.type === NODE_TYPES.conditional) {
         nodeType = 'conditional';
+      } else if (step.type === NODE_TYPES.mcp_agent) {
+        nodeType = 'mcp_agent';
+      } else if (step.type === NODE_TYPES.browser_action) {
+        nodeType = 'browser_action';
       }
       
       newNodes.push({
@@ -198,6 +236,10 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
         stepType = NODE_TYPES.agent;
       } else if (type === 'conditional') {
         stepType = NODE_TYPES.conditional;
+      } else if (type === 'mcp_agent') {
+        stepType = NODE_TYPES.mcp_agent;
+      } else if (type === 'browser_action') {
+        stepType = NODE_TYPES.browser_action;
       }
       
       const dependsOn = edges
@@ -502,6 +544,85 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
           </div>
         );
         
+      case 'mcp_agent':
+        return (
+          <div className="p-4 space-y-4">
+            <h3 className="text-lg font-medium">MCP Agent Configuration</h3>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Name
+              </label>
+              <Input 
+                value={nodeConfig.label || ''} 
+                onChange={e => updateNodeConfig('label', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                MCP Server
+              </label>
+              <Input 
+                value={nodeConfig.mcp_server || ''} 
+                onChange={e => updateNodeConfig('mcp_server', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tool
+              </label>
+              <Input 
+                value={nodeConfig.tool || ''} 
+                onChange={e => updateNodeConfig('tool', e.target.value)}
+              />
+            </div>
+            
+            <Button onClick={applyNodeConfig}>Apply Changes</Button>
+          </div>
+        );
+        
+      case 'browser_action':
+        return (
+          <div className="p-4 space-y-4">
+            <h3 className="text-lg font-medium">Browser Action Configuration</h3>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Name
+              </label>
+              <Input 
+                value={nodeConfig.label || ''} 
+                onChange={e => updateNodeConfig('label', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Action
+              </label>
+              <Input 
+                value={nodeConfig.browser_action || ''} 
+                onChange={e => updateNodeConfig('browser_action', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                URL
+              </label>
+              <Input 
+                value={nodeConfig.url || ''} 
+                onChange={e => updateNodeConfig('url', e.target.value)}
+                placeholder="URL"
+              />
+            </div>
+            
+            <Button onClick={applyNodeConfig}>Apply Changes</Button>
+          </div>
+        );
+        
       default:
         return null;
     }
@@ -542,6 +663,26 @@ export default function WorkflowEditor({ workflowId, initialWorkflow }: Workflow
               <HiOutlineCode className="text-yellow-600 dark:text-yellow-400 w-5 h-5" />
             </div>
             <span>Conditional Branch</span>
+          </button>
+          
+          <button
+            className="flex items-center w-full p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={() => addNode('mcp_agent')}
+          >
+            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20 mr-3">
+              <HiOutlineLightningBolt className="text-purple-600 dark:text-purple-400 w-5 h-5" />
+            </div>
+            <span>MCP Agent</span>
+          </button>
+          
+          <button
+            className="flex items-center w-full p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={() => addNode('browser_action')}
+          >
+            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/20 mr-3">
+              <HiOutlineDatabase className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+            </div>
+            <span>Browser Action</span>
           </button>
         </div>
         

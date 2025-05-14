@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Search Recommendations</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #202124;
+      background-color: #f8f9fa;
+      line-height: 1.5;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f1f3f4;
+    }
+    
+    .logo {
+      width: 48px;
+      height: 48px;
+      margin-right: 16px;
+    }
+    
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 500;
+      color: #202124;
+    }
+    
+    .search-info {
+      background-color: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    
+    .search-query {
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    
+    .recommendations {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+    
+    .recommendation-card {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 16px;
+      transition: transform 0.2s;
+    }
+    
+    .recommendation-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .recommendation-title {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    
+    .recommendation-title a {
+      color: #1a73e8;
+      text-decoration: none;
+    }
+    
+    .recommendation-title a:hover {
+      text-decoration: underline;
+    }
+    
+    .recommendation-snippet {
+      margin-bottom: 16px;
+      color: #5f6368;
+      font-size: 14px;
+    }
+    
+    .recommendation-reason {
+      background-color: #f1f3f4;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    
+    .recommendation-reason-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    
+    .recommendation-scores {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    
+    .score-item {
+      text-align: center;
+      padding: 8px;
+      border-radius: 4px;
+      background-color: #f1f3f4;
+    }
+    
+    .score-label {
+      font-size: 12px;
+      color: #5f6368;
+      margin-bottom: 4px;
+    }
+    
+    .score-value {
+      font-size: 18px;
+      font-weight: 500;
+    }
+    
+    .no-recommendations {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 24px;
+      text-align: center;
+      color: #5f6368;
+    }
+    
+    .footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #5f6368;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 16px;
+      }
+      
+      .recommendations {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icons/icon48.png" alt="Logo" class="logo">
+      <h1>MCP Search Recommendations</h1>
+    </div>
+    
+    <div class="search-info">
+      <div class="search-query">Search Query: <span id="search-query">Loading...</span></div>
+      <div>Analysis Criteria: <span id="analysis-criteria">Loading...</span></div>
+    </div>
+    
+    <div id="recommendations-container">
+      <div class="no-recommendations">
+        Loading recommendations...
+      </div>
+    </div>
+    
+    <div class="footer">
+      Powered by MCP (Model Context Protocol)
+    </div>
+  </div>
+  
+  <script src="recommendations.js"></script>
+</body>
+</html> 
