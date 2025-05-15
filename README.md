@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/ot2net-agi-mcp-agent-badge.png)](https://mseep.ai/app/ot2net-agi-mcp-agent)
+
 # AGI-MCP-Agent
 
 [![GitHub Stars](https://img.shields.io/github/stars/ot2net/agi-mcp-agent?style=social)](https://github.com/ot2net/agi-mcp-agent)
