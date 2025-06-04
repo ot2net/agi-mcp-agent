@@ -274,46 +274,110 @@ class MCPRepository:
             return False
 
     # System status operations
-    def get_system_status(self) -> Optional[SystemStatus]:
-        """Get the current system status.
-
+    def get_system_status(self) -> SystemStatus:
+        """Get current system status.
+        
         Returns:
-            The current system status
+            Current system status information
         """
+        with Session(self.engine) as session:
+            # Count tasks by status
+            total_tasks = session.query(TaskDB).count()
+            pending_tasks = session.query(TaskDB).filter(TaskDB.status == "pending").count()
+            running_tasks = session.query(TaskDB).filter(TaskDB.status == "running").count()
+            completed_tasks = session.query(TaskDB).filter(TaskDB.status == "completed").count()
+            failed_tasks = session.query(TaskDB).filter(TaskDB.status == "failed").count()
+            
+            # Count agents by status
+            total_agents = session.query(AgentDB).count()
+            active_agents = session.query(AgentDB).filter(AgentDB.status == "active").count()
+            idle_agents = session.query(AgentDB).filter(AgentDB.status == "idle").count()
+            
+            # 实现实际的系统负载计算
+            system_load = self._calculate_system_load(session)
+            
+            return SystemStatus(
+                total_tasks=total_tasks,
+                pending_tasks=pending_tasks,
+                running_tasks=running_tasks,
+                completed_tasks=completed_tasks,
+                failed_tasks=failed_tasks,
+                total_agents=total_agents,
+                active_agents=active_agents,
+                idle_agents=idle_agents,
+                system_load=system_load
+            )
+
+    def _calculate_system_load(self, session) -> float:
+        """计算实际的系统负载"""
         try:
-            with self._get_session() as session:
-                # Get agent counts
-                agent_query = text("""
-                    SELECT 
-                        COUNT(*) as total,
-                        COUNT(CASE WHEN status = 'active' THEN 1 END) as active
-                    FROM mcp_agents
-                """)
-                agent_stats = session.execute(agent_query).fetchone()
+            import psutil
+            
+            # CPU使用率 (0-1)
+            cpu_percent = psutil.cpu_percent(interval=0.1) / 100.0
+            
+            # 内存使用率 (0-1)  
+            memory_percent = psutil.virtual_memory().percent / 100.0
+            
+            # 任务负载率 (运行中的任务数 / 活跃代理数)
+            running_tasks = session.query(TaskDB).filter(TaskDB.status == "running").count()
+            active_agents = session.query(AgentDB).filter(AgentDB.status == "active").count()
+            
+            task_load = running_tasks / max(active_agents, 1)  # 避免除零错误
+            
+            # 综合负载计算：CPU权重0.4，内存权重0.3，任务权重0.3
+            system_load = (cpu_percent * 0.4) + (memory_percent * 0.3) + (min(task_load, 1.0) * 0.3)
+            
+            return round(system_load, 3)
+            
+        except ImportError:
+            # 如果psutil不可用，使用简化的任务负载计算
+            running_tasks = session.query(TaskDB).filter(TaskDB.status == "running").count()
+            active_agents = session.query(AgentDB).filter(AgentDB.status == "active").count()
+            
+            return running_tasks / max(active_agents, 1)
+        except Exception as e:
+            logger.warning(f"Error calculating system load: {str(e)}")
+            return 0.0
 
-                # Get task counts
-                task_query = text("""
-                    SELECT 
-                        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-                        COUNT(CASE WHEN status = 'running' THEN 1 END) as running,
-                        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
-                        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
-                    FROM mcp_tasks
-                """)
-                task_stats = session.execute(task_query).fetchone()
+    def get_tasks_by_status(self, status: str) -> List[Task]:
+        """获取指定状态的任务列表"""
+        with Session(self.engine) as session:
+            task_dbs = session.query(TaskDB).filter(TaskDB.status == status).all()
+            return [self._db_task_to_model(task_db) for task_db in task_dbs]
 
-                return SystemStatus(
-                    total_agents=agent_stats[0],
-                    active_agents=agent_stats[1],
-                    pending_tasks=task_stats[0],
-                    running_tasks=task_stats[1],
-                    completed_tasks=task_stats[2],
-                    failed_tasks=task_stats[3],
-                    system_load=0.0  # TODO: Implement actual system load calculation
-                )
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting system status: {e}")
-            return None
+    def get_available_agents(self) -> List[Agent]:
+        """获取可用的代理列表"""
+        with Session(self.engine) as session:
+            agent_dbs = session.query(AgentDB).filter(
+                AgentDB.status.in_(["active", "idle"])
+            ).all()
+            return [self._db_agent_to_model(agent_db) for agent_db in agent_dbs]
+
+    def assign_task_to_agent(self, task_id: int, agent_id: int) -> bool:
+        """将任务分配给代理"""
+        try:
+            with Session(self.engine) as session:
+                # 更新任务状态和分配的代理
+                task_db = session.query(TaskDB).filter(TaskDB.id == task_id).first()
+                if not task_db:
+                    return False
+                
+                task_db.agent_id = agent_id
+                task_db.status = "assigned"
+                task_db.started_at = datetime.utcnow()
+                
+                # 更新代理状态
+                agent_db = session.query(AgentDB).filter(AgentDB.id == agent_id).first()
+                if agent_db:
+                    agent_db.status = "busy"
+                
+                session.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error assigning task {task_id} to agent {agent_id}: {str(e)}")
+            return False
 
     # Logging operations
     def add_system_log(self, log: SystemLog) -> bool:

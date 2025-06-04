@@ -101,10 +101,41 @@ The core agent capabilities:
 
 ### Prerequisites
 
-- Python 3.8.1 or later
-- [Poetry](https://python-poetry.org/docs/#installation) for dependency management (optional)
+- Python 3.9 or later
+- [Poetry](https://python-poetry.org/docs/#installation) for dependency management (recommended)
+- PostgreSQL 12+ (or SQLite for development)
 - OpenAI API key (for LLM-based agents)
 - Docker and Docker Compose (optional, for containerized deployment)
+
+### Quick Start with Docker (Recommended)
+
+The fastest way to get started is using Docker Compose:
+
+1. Clone the repository
+   ```bash
+   git clone https://github.com/ot2net/agi-mcp-agent.git
+   cd agi-mcp-agent
+   ```
+
+2. Copy and configure environment variables
+   ```bash
+   cp example.env .env
+   # Edit .env with your API keys and configuration
+   ```
+
+3. Start the services
+   ```bash
+   # Start backend with database
+   docker-compose up -d
+   
+   # Or start with frontend included
+   docker-compose --profile frontend up -d
+   ```
+
+4. Access the application
+   - API: http://localhost:8000
+   - Frontend (if enabled): http://localhost:3000
+   - API Documentation: http://localhost:8000/docs
 
 ### Local Development Setup
 
@@ -118,17 +149,25 @@ The core agent capabilities:
 
 2. Install dependencies using Poetry
    ```bash
-   poetry install
+   make install-dev
+   # or manually: poetry install
    ```
 
 3. Set up environment variables
    ```bash
-   export OPENAI_API_KEY=your_api_key_here
+   cp example.env .env
+   # Edit .env with your configuration
    ```
 
-4. Run the development server
+4. Initialize the database
    ```bash
-   poetry run python -m uvicorn agi_mcp_agent.api.server:app --host 0.0.0.0 --port 8000 --reload
+   make db-init
+   ```
+
+5. Run the development server
+   ```bash
+   make run-dev
+   # or manually: poetry run python -m uvicorn agi_mcp_agent.api.server:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 #### Without Poetry (Simplified Approach)
@@ -141,66 +180,57 @@ The core agent capabilities:
 
 2. Generate and install dependencies
    ```bash
-   python generate_requirements.py
+   make requirements
    pip install -r requirements.txt
    ```
 
 3. Set up environment variables
    ```bash
-   export OPENAI_API_KEY=your_api_key_here
+   cp example.env .env
+   # Edit .env with your configuration
    ```
 
 4. Run the development server
    ```bash
-   python -m uvicorn agi_mcp_agent.api.server:app --host 0.0.0.0 --port 8000 --reload
+   make run-pip
    ```
 
 ### Using the Makefile
 
-The project includes a Makefile with useful commands:
+The project includes a comprehensive Makefile with useful commands:
+
 ```bash
-make help          # Show available commands
-make install-dev   # Install development dependencies with Poetry
-make install-pip   # Install dependencies with pip (without Poetry)
-make requirements  # Generate requirements.txt from pyproject.toml
+# Development commands
+make help          # Show all available commands
+make install-dev   # Install development dependencies
 make format        # Format code with Black and isort
-make lint          # Run linters
+make lint          # Run linters (flake8, mypy)
 make test          # Run tests
+make test-cov      # Run tests with coverage report
+make check         # Run all quality checks
+make security      # Run security checks
+
+# Running commands
 make run           # Run server with Poetry
+make run-dev       # Run in development mode with hot reload
 make run-pip       # Run server with pip (without Poetry)
+
+# Docker commands
 make docker-build  # Build Docker image
 make docker-run    # Run Docker container
 make docker-stop   # Stop Docker container
+make docker-logs   # View container logs
+
+# Database commands
+make db-init       # Initialize database
+make db-migrate    # Create new migration
+make db-upgrade    # Apply migrations
+
+# Maintenance commands
+make clean         # Remove build artifacts
+make update-deps   # Update dependencies
+make health-check  # Check if server is running
 ```
-
-### Using Docker
-
-#### Quick Start with Docker Compose
-
-1. Build and run with Docker Compose
-   ```bash
-   docker-compose up --build
-   ```
-
-2. Access the API at http://localhost:8000
-
-3. Stop the containers when done
-   ```bash
-   docker-compose down
-   ```
-
-#### Custom Docker Configuration
-
-The project includes two Dockerfiles:
-- `Dockerfile` - For the backend API
-- `Dockerfile.frontend` - For the frontend Next.js application
-
-The Docker setup automatically extracts dependencies from `pyproject.toml` and doesn't require Poetry to be installed in the container.
-
-To customize the Docker build:
-1. Edit environment variables in `docker-compose.yml`
-2. Build the images: `docker-compose build`
-3. Run the containers: `docker-compose up -d`
 
 ## Contributing
 

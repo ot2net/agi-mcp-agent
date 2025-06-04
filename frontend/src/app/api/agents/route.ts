@@ -1,38 +1,38 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // GET /api/agents
-export async function GET(request: NextRequest) {
-  const url = `${BACKEND_URL}/agents`;
-  console.log('Fetching agents from:', url);
-  
+export async function GET() {
   try {
+    const url = `${API_BASE_URL}/agents/`;
+    
     const response = await fetch(url, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
+      // 添加超时控制
+      signal: AbortSignal.timeout(10000)
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Backend error:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
-      throw new Error(`Failed to fetch agents: ${response.statusText}`);
+      throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
     }
 
     const agents = await response.json();
-    console.log('Successfully fetched agents:', agents);
+    
     return NextResponse.json(agents);
   } catch (error) {
-    console.error('Error fetching agents:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // 只在开发环境记录详细错误
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching agents:', error);
+    }
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch agents' },
+      { error: 'Failed to fetch agents', details: errorMessage },
       { status: 500 }
     );
   }
@@ -40,39 +40,44 @@ export async function GET(request: NextRequest) {
 
 // POST /api/agents
 export async function POST(request: NextRequest) {
-  const url = `${BACKEND_URL}/agents`;
-  console.log('Creating agent at:', url);
-  
   try {
+    const url = `${API_BASE_URL}/agents/`;
     const body = await request.json();
-    console.log('Request body:', body);
+
+    // 基本的输入验证
+    if (!body.name || typeof body.name !== 'string') {
+      return NextResponse.json(
+        { error: 'Agent name is required and must be a string' },
+        { status: 400 }
+      );
+    }
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000) // 创建操作允许更长时间
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Backend error:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
-      throw new Error(`Failed to create agent: ${response.statusText}`);
+      throw new Error(`Backend API error: ${response.status} ${response.statusText}. ${errorText}`);
     }
 
     const agent = await response.json();
-    console.log('Successfully created agent:', agent);
-    return NextResponse.json(agent);
+    
+    return NextResponse.json(agent, { status: 201 });
   } catch (error) {
-    console.error('Error creating agent:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error creating agent:', error);
+    }
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create agent' },
+      { error: 'Failed to create agent', details: errorMessage },
       { status: 500 }
     );
   }

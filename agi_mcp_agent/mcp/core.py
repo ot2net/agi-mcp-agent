@@ -312,55 +312,102 @@ class MasterControlProgram:
         return response
 
     async def start(self):
-        """Start the MCP."""
-        logger.info("Starting MCP main loop")
+        """Start the MCP.
+
+        This will start background tasks for:
+        - Task scheduling and agent assignment
+        - System monitoring and health checks
+        - Resource management
+        """
+        if self.running:
+            logger.warning("MCP is already running")
+            return
+
+        logger.info("Starting Master Control Program")
+        self.running = True
+
+        # Log startup event
+        self._log_system_event("info", "MCP started")
+
         try:
-            self.running = True
-            self._log_system_event("info", "MCP started")
-
-            logger.info("MCP entering main loop")
+            # 实现基本的任务调度循环
             while self.running:
-                try:
-                    # Get system status
-                    logger.debug("Fetching system status")
-                    status = await self.get_system_status()
-                    if status:
-                        # Log system status periodically
-                        if status.running_tasks > 0 or status.pending_tasks > 0:
-                            logger.debug(f"System status: {status.dict()}")
-                            self._log_system_event(
-                                "debug",
-                                "System status update",
-                                status.dict()
-                            )
-
-                    # TODO: Implement task scheduling and agent assignment logic
-                    # This would involve:
-                    # 1. Querying for pending tasks
-                    # 2. Finding available agents
-                    # 3. Matching tasks to agents based on capabilities
-                    # 4. Updating task status and agent assignments
-
-                    await asyncio.sleep(1)  # Prevent CPU overuse
-
-                except Exception as e:
-                    logger.error(f"Error in MCP main loop iteration: {str(e)}")
-                    logger.error(traceback.format_exc())
-                    self._log_system_event(
-                        "error",
-                        f"Error in MCP main loop: {str(e)}",
-                        {"error": str(e), "traceback": traceback.format_exc()}
-                    )
-                    await asyncio.sleep(5)  # Wait before retrying
+                await self._process_task_queue()
+                await self._monitor_system_health()
+                await asyncio.sleep(1)  # 调度间隔为1秒
+                
+        except asyncio.CancelledError:
+            logger.info("MCP task loop cancelled")
         except Exception as e:
-            logger.error(f"Critical error in MCP start: {str(e)}")
+            logger.error(f"Error in MCP main loop: {str(e)}")
             logger.error(traceback.format_exc())
-            self._log_system_event(
-                "error",
-                f"Critical error in MCP start: {str(e)}",
-                {"error": str(e), "traceback": traceback.format_exc()}
-            )
-            raise
+            self._log_system_event("error", f"MCP main loop error: {str(e)}")
+        finally:
+            self.running = False
+            self._log_system_event("info", "MCP stopped")
+
+    async def _process_task_queue(self):
+        """处理任务队列，实现任务调度和代理分配逻辑"""
+        try:
+            # 获取待处理的任务
+            pending_tasks = self.repository.get_tasks_by_status("pending")
+            if not pending_tasks:
+                return
+
+            # 获取可用的代理
+            available_agents = self.repository.get_available_agents()
+            if not available_agents:
+                logger.debug("No available agents for task assignment")
+                return
+
+            # 简单的轮询调度算法
+            for i, task in enumerate(pending_tasks[:len(available_agents)]):
+                agent = available_agents[i % len(available_agents)]
+                
+                # 分配任务给代理
+                success = self.repository.assign_task_to_agent(task.id, agent.id)
+                if success:
+                    logger.info(f"Assigned task {task.id} to agent {agent.id}")
+                    self._log_system_event(
+                        "info", 
+                        f"Task assigned: {task.name} to agent {agent.name}",
+                        {"task_id": task.id, "agent_id": agent.id}
+                    )
+                else:
+                    logger.warning(f"Failed to assign task {task.id} to agent {agent.id}")
+
+        except Exception as e:
+            logger.error(f"Error in task queue processing: {str(e)}")
+            logger.error(traceback.format_exc())
+
+    async def _monitor_system_health(self):
+        """监控系统健康状态"""
+        try:
+            # 检查代理状态
+            agents = self.repository.get_all_agents()
+            active_agents = [agent for agent in agents if agent.status == "active"]
+            
+            # 检查任务状态
+            all_tasks = self.repository.get_all_tasks()
+            running_tasks = [task for task in all_tasks if task.status == "running"]
+            
+            # 计算系统负载（简单实现）
+            if active_agents:
+                system_load = len(running_tasks) / len(active_agents)
+            else:
+                system_load = 0.0
+
+            # 如果系统负载过高，记录警告
+            if system_load > 5.0:  # 每个代理平均超过5个任务
+                self._log_system_event(
+                    "warning", 
+                    f"High system load detected: {system_load:.2f}",
+                    {"system_load": system_load, "active_agents": len(active_agents), "running_tasks": len(running_tasks)}
+                )
+
+        except Exception as e:
+            logger.error(f"Error in system health monitoring: {str(e)}")
+            logger.error(traceback.format_exc())
 
     async def stop(self):
         """Stop the MCP."""

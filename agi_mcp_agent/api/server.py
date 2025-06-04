@@ -7,6 +7,7 @@ import uuid
 import sys
 import traceback
 import threading
+import time
 from typing import Dict, List, Optional, Union, Any
 from dotenv import load_dotenv
 from datetime import datetime
@@ -40,12 +41,31 @@ logger.info(f"Setting log level to {log_level}")
 logger.info("Loading environment variables from .env file")
 load_dotenv()
 
-# Get database URL from environment
+# 改进API密钥的脱敏处理
+def mask_sensitive_url(url: str) -> str:
+    """Mask sensitive information in database URLs."""
+    if '@' in url:
+        parts = url.split('@')
+        if len(parts) >= 2:
+            # 保留协议和用户名，脱敏密码
+            user_info = parts[0].split('//')[-1]
+            if ':' in user_info:
+                username = user_info.split(':')[0]
+                return f"{url.split('//')[0]}//{username}:***@{parts[1]}"
+    return url
+
+# 获取数据库URL并脱敏日志
 database_url = os.getenv("DATABASE_URL")
 if not database_url:
     logger.error("DATABASE_URL environment variable is not set")
     raise ValueError("DATABASE_URL environment variable is not set")
-logger.info(f"Using database URL: {database_url.split('@')[0]}@*****")
+
+# 改进日志输出，使用脱敏函数
+logger.info(f"Using database URL: {mask_sensitive_url(database_url)}")
+
+# 改进CORS配置，使其更安全和可配置
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+logger.info(f"Configured CORS origins: {ALLOWED_ORIGINS}")
 
 # Create the FastAPI app
 logger.info("Creating FastAPI application")
@@ -55,14 +75,13 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Add CORS middleware
-logger.info("Adding CORS middleware")
+# 更新CORS中间件配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 允许的前端域名
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],  # 允许所有HTTP方法
-    allow_headers=["*"],  # 允许所有HTTP头
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 # Global variables for MCP
@@ -83,16 +102,30 @@ except Exception as e:
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log incoming requests for debugging."""
-    logger.debug(f"Incoming request: {request.method} {request.url.path}")
+    """Log incoming requests with improved error handling."""
+    start_time = time.time()
+    client_ip = request.client.host if request.client else "unknown"
+    
+    logger.debug(f"Request: {request.method} {request.url.path} from {client_ip}")
+    
     try:
         response = await call_next(request)
-        logger.debug(f"Response status: {response.status_code}")
+        process_time = time.time() - start_time
+        logger.debug(f"Response: {response.status_code} in {process_time:.3f}s")
+        
+        # 为响应添加处理时间头
+        response.headers["X-Process-Time"] = str(process_time)
         return response
     except Exception as e:
-        logger.error(f"Request error: {str(e)}")
+        process_time = time.time() - start_time
+        logger.error(f"Request error after {process_time:.3f}s: {str(e)}")
         logger.error(traceback.format_exc())
-        raise
+        # 返回适当的错误响应而不是让异常向上传播
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(e)}
+        )
 
 def run_async_in_thread(async_func):
     """Run an async function in a separate thread."""

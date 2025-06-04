@@ -21,17 +21,31 @@ export function SystemStatusCard() {
   const fetchStatus = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/status');
+      setError(null);  // 清除之前的错误
+      
+      const response = await fetch('/api/status', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // 添加超时控制
+        signal: AbortSignal.timeout(10000) // 10秒超时
+      });
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch system status');
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
       const data = await response.json();
-      console.log('Status data:', data); // 调试用，可以在需要时移除
       setStatus(data);
-      setError(null);
     } catch (err) {
-      setError('Failed to load system status');
-      console.error('Error fetching system status:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Failed to load system status: ${errorMessage}`);
+      
+      // 只在开发环境记录详细错误
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching system status:', err);
+      }
     } finally {
       setIsLoading(false);
     }
